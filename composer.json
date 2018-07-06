@@ -1,0 +1,20 @@
+{
+    "name": "seanmorris/dromez",
+    "description": "Zandronum Web-based Admin Console",
+    "authors": [
+        {
+            "name": "Sean Morris",
+            "email": "inquire@seanmorr.is"
+        }
+    ],
+    "require": {
+        "seanmorris/ids": "dev-master"
+        , "react/socket": "0.8.^"
+    },
+    "autoload": {
+        "psr-4": {
+            "SeanMorris\\Dromez\\Test\\": "test/",
+            "SeanMorris\\Dromez\\":       "source/"
+        }
+    }
+}
