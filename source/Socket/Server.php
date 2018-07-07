@@ -4,8 +4,9 @@ class Server
 {
 	const
 		ADDRESS          = '0.0.0.0:9999'
-		, MAX            = 10
-		, PEM_PASSPHRASE = 'password';
+		, MAX            = 1
+		, PEM_PASSPHRASE = 'password'
+		, FREQUENCY      = 1;
 
 	protected
 		$socket    = NULL
@@ -19,32 +20,36 @@ class Server
 
 		while(TRUE)
 		{
-			usleep(1000000/60);
+			usleep( 1000000 / static::FREQUENCY );
 
 			if($newClient = $this->getClient())
 			{
-				fwrite(STDERR, "Accepting client...\n");
-
-				static::handshake($newClient);
-
 				$this->clients[] = $newClient;
 
-				$this->send('Hi!', $newClient);
+				end($this->clients);
+
+				$this->onConnect($newClient, key($this->clients));
+
+				reset($this->clients);
 			}
+
+			$this->broadcast('Now: ' . microtime(TRUE));
 
 			foreach($this->clients as $clientId => $client)
 			{
-				// fwrite(STDERR, sprintf("Checking client #%d...\n", $clientId));
-
 				if(!$client)
 				{
 					continue;
 				}
 
-				$this->receive(fread($client, 2**16), $clientId);
+				while($message = fread($client, 2**16))
+				{
+					$this->onReceive(
+						static::decode($message)
+						, $clientId
+					);
+				}
 			}
-
-			$this->broadcast('Now: ' . microtime(TRUE));
 		}
 	}
 
@@ -78,14 +83,6 @@ class Server
 		return $socketData;
 	}
 
-	public function receive($content)
-	{
-		if($content)
-		{
-			var_dump(static::decode($content));
-		}
-	}
-
 	public function send($content, $client)
 	{
 		$response = chr(129) . chr(strlen($content)) . $content;
@@ -99,6 +96,8 @@ class Server
 			{
 				if($client === $_client)
 				{
+					$this->onDisconnect($client, $_clientId);
+
 					unset($this->clients[$_clientId]);
 				}
 			}
@@ -153,15 +152,6 @@ class Server
 
 		try
 		{
-			if(!$this->clients)
-			{
-				fwrite(STDERR,
-					"Checking for client..."
-						. microtime(1)
-						. "\n"
-				);
-			}
-
 			$client = stream_socket_accept($this->socket, 0);
 		}
 		catch(\ErrorException $e)
@@ -175,6 +165,16 @@ class Server
 		}
 
 		stream_set_blocking($client, FALSE);
+
+		static::handshake($client);
+
+		if(count($this->clients) >= static::MAX)
+		{
+			fwrite($client, "Rejected\r\n");
+			$this->onReject($client);
+			fclose($client);
+			return FALSE;
+		}
 
 		return $client;
 	}
@@ -217,13 +217,51 @@ class Server
 			return;
 		}
 
-		$output = "HTTP/1.1 101 Switching Protocols\r\n"
-			. "Upgrade: websocket\r\n"
-			. "Connection: Upgrade\r\n"
-			. "Sec-WebSocket-Accept: " . base64_encode(sha1($match[1] . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', TRUE))
-			. "\r\n\r\n";
-		
-		fwrite($client, $output);
-		fwrite(STDERR, $output);
+		fwrite(
+			$client
+			, "HTTP/1.1 101 Switching Protocols\r\n"
+				. "Upgrade: websocket\r\n"
+				. "Connection: Upgrade\r\n"
+				. "Sec-WebSocket-Accept: " . base64_encode(
+					sha1($match[1] . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', TRUE)
+				)
+				. "\r\n\r\n"
+		);
+	}
+
+	protected function onConnect($client, $clientId)
+	{
+		fwrite(STDERR, sprintf(
+			"Accepting client #%d...\n"
+			, count($this->clients)
+		));
+	}
+
+	protected function onReject($client)
+	{
+		fwrite(STDERR, "Rejecting client...\n");
+	}
+
+	protected function onReceive($message, $clientId)
+	{
+		fwrite(STDERR, sprintf(
+			"[#%d][%s] %s...\n"
+			, $clientId
+			, date('Y-m-d H:i:s')
+			, $message
+		));
+	}
+
+	protected function onDisconnect($client, $clientId)
+	{
+		fwrite(STDERR, sprintf(
+			"Disconnecting client #%d...\n"
+			, $clientId
+		));
+	}
+
+	protected function onError($error, $client, $clientId)
+	{
+
 	}
 }
