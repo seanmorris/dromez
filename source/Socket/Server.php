@@ -6,7 +6,7 @@ class Server
 		ADDRESS          = '0.0.0.0:9999'
 		, MAX            = 1
 		, PEM_PASSPHRASE = 'password'
-		, FREQUENCY      = 1;
+		, FREQUENCY      = 120;
 
 	protected
 		$socket    = NULL
@@ -22,33 +22,38 @@ class Server
 		{
 			usleep( 1000000 / static::FREQUENCY );
 
-			if($newClient = $this->getClient())
+			$this->tick();			
+		}
+	}
+
+	public function tick()
+	{
+		if($newClient = $this->getClient())
+		{
+			$this->clients[] = $newClient;
+
+			end($this->clients);
+
+			$this->onConnect($newClient, key($this->clients));
+
+			reset($this->clients);
+		}
+
+		$this->onTick();
+
+		foreach($this->clients as $clientId => $client)
+		{
+			if(!$client)
 			{
-				$this->clients[] = $newClient;
-
-				end($this->clients);
-
-				$this->onConnect($newClient, key($this->clients));
-
-				reset($this->clients);
+				continue;
 			}
 
-			$this->broadcast('Now: ' . microtime(TRUE));
-
-			foreach($this->clients as $clientId => $client)
+			while($message = fread($client, 2**16))
 			{
-				if(!$client)
-				{
-					continue;
-				}
-
-				while($message = fread($client, 2**16))
-				{
-					$this->onReceive(
-						static::decode($message)
-						, $clientId
-					);
-				}
+				$this->onReceive(
+					static::decode($message)
+					, $clientId
+				);
 			}
 		}
 	}
@@ -245,7 +250,7 @@ class Server
 	protected function onReceive($message, $clientId)
 	{
 		fwrite(STDERR, sprintf(
-			"[#%d][%s] %s...\n"
+			"[#%d][%s] Message Received:\n\t%s\n"
 			, $clientId
 			, date('Y-m-d H:i:s')
 			, $message
@@ -260,7 +265,12 @@ class Server
 		));
 	}
 
-	protected function onError($error, $client, $clientId)
+	protected function onTick()
+	{
+		$this->broadcast('Now: ' . microtime(TRUE));
+	}
+
+	protected function onError($error, $clientId)
 	{
 
 	}

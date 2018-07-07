@@ -9,7 +9,6 @@
     ],
     "require": {
         "seanmorris/ids": "dev-master"
-        , "react/socket": "0.8.^"
     },
     "autoload": {
         "psr-4": {
