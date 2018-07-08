@@ -2,21 +2,23 @@
 namespace SeanMorris\Dromez\Socket;
 class DromezServer extends Server
 {
+	const ADDRESS   = 'dromez:9999'
+		, FREQUENCY = 120
+		, MAX       = 100;
+
+	protected $userContext = [];
+
 	protected function onConnect($client, $clientId)
 	{
 		fwrite(STDERR, sprintf(
 			"Accepting client #%d...\n"
-			, count($this->clients)
+			, $clientId
 		));
 
-		$this->send('Hi!', $client);
-
-		$token = new \SeanMorris\Dromez\Jwt\Token([
-			'time'  => microtime(TRUE)
-			, 'uid' => 0
-		]);
-
-		$this->send($token, $client);
+		$this->send(sprintf(
+			'Hi, #%d!'
+			, $clientId
+		), $client);
 	}
 
 	protected function onReject($client)
@@ -26,23 +28,94 @@ class DromezServer extends Server
 
 	protected function onReceive($message, $clientId)
 	{
-		// fwrite(STDERR, sprintf(
-		// 	"[#%d][%s] Message Received:\n\t%s\n"
-		// 	, $clientId
-		// 	, date('Y-m-d H:i:s')
-		// 	, $message
-		// ));
+		fwrite(STDERR, sprintf(
+			"[#%d][%s] Message Received:\n\t%s\n"
+			, $clientId
+			, date('Y-m-d H:i:s')
+			, $message
+		));
+
+		$defaultContext = [
+			'__server'     => $this
+			, '__client'   => $this->clients[$clientId]
+			, '__clientId' => $clientId
+		];
 
 		if(\SeanMorris\Dromez\Jwt\Token::verify($message))
 		{
+			$this->send(sprintf(
+				'You\'re authenticated, #%d!'
+				, $clientId
+			), $this->clients[$clientId]);
+
 			fwrite(STDERR, sprintf(
 				"Client #%d authentiated!\n"
 				, $clientId
 			));
+
+			$this->userContext[$clientId] = $defaultContext;
 		}
 		else
 		{
-			var_dump(json_decode($message));
+			fwrite(STDERR, sprintf(
+				"Message Received from %d!\n\t%s\n"
+				, $clientId
+				, $message
+			));
+
+			$context = [];
+			
+			$path = new \SeanMorris\Ids\Path(...preg_split('/[\s\/]/', $message));
+
+			if(isset($this->userContext[$clientId]))
+			{
+				$context =& $this->userContext[$clientId];
+
+				if(isset($context['__currentPath']))
+				{
+					$path = $path->unshift($context['__currentPath']);
+				}
+			}
+			else
+			{
+				$context = $defaultContext;
+			}
+
+			if($message == '\kill')
+			{
+				unset($context['__currentPath']);
+				return;
+			}
+
+			if($message == '\unsub')
+			{
+				$this->subscriptions[$clientId] = [];
+				return;
+			}
+
+			$routes   = new Route;
+			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
+			$router   = new \SeanMorris\Ids\Router($request, $routes);
+
+			$router->setContext($context);
+
+			$response = $router->route();
+
+			if(isset($this->clients[$clientId]))
+			{
+				if($response === FALSE)
+				{
+
+					$this->send(sprintf(
+						'Command "%s" not valid.'
+						, $message
+					), $this->clients[$clientId]);
+				}
+				else
+				{
+					$this->send($response, $this->clients[$clientId]);
+				}
+			}
 		}
 	}
 
@@ -52,11 +125,13 @@ class DromezServer extends Server
 			"Disconnecting client #%d...\n"
 			, $clientId
 		));
+
+		unset($this->userContext[$clientId]);
 	}
 
 	protected function onTick()
 	{
-		$this->broadcast('Now: ' . microtime(TRUE));
+		$this->broadcast(NULL);
 	}
 
 	protected function onError($error, $clientId)

@@ -17,10 +17,11 @@ class Server
 		];
 
 	protected
-		$socket    = NULL
-		, $clients = []
-		, $sockets = []
-		, $secure  = TRUE;
+		$socket          = NULL
+		, $clients       = []
+		, $sockets       = []
+		, $secure        = TRUE
+		, $subscriptions = [];
 
 	public function listen()
 	{
@@ -56,12 +57,29 @@ class Server
 				continue;
 			}
 
-			while($message = fread($client, 2**16))
+			try
 			{
-				$this->onReceive(
-					static::decode($message)
-					, $clientId
-				);
+				while($message = fread($client, 2**16))
+				{
+					$this->onReceive(
+						static::decode($message)
+						, $clientId
+					);
+				}
+			}
+			catch(\Exception $e)
+			{
+				\SeanMorris\Ids\Log::logException($e);
+
+				foreach($this->clients as $_clientId => $_client)
+				{
+					if($client === $_client)
+					{
+						$this->onDisconnect($client, $_clientId);
+
+						unset($this->clients[$_clientId]);
+					}
+				}
 			}
 		}
 	}
@@ -122,6 +140,8 @@ class Server
 		}
 		catch(\Exception $e)
 		{
+			\SeanMorris\Ids\Log::logException($e);
+
 			foreach($this->clients as $_clientId => $_client)
 			{
 				if($client === $_client)
@@ -142,6 +162,37 @@ class Server
 		{
 			if(!$client)
 			{
+				continue;
+			}
+
+			$this->send($content, $client);
+		}
+	}
+
+	public function subscribe($channel, ...$clientIds)
+	{
+		foreach($clientIds as $clientId)
+		{
+			$this->subscriptions[$clientId][$channel] = TRUE;
+		}
+	}
+
+	public function unsubscribe($channel, ...$clientIds)
+	{
+		foreach($clientIds as $clientId)
+		{
+			unset($this->subscriptions[$clientId][$channel]);
+		}
+	}
+
+	public function publish($content, $channel)
+	{
+		foreach($this->clients as $clientId => $client)
+		{
+			if(!$client
+				|| !isset($this->subscriptions[$clientId][$channel])
+				|| !$this->subscriptions[$clientId][$channel]
+			){
 				continue;
 			}
 
