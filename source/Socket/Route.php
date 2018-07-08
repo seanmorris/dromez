@@ -129,12 +129,14 @@ class Route implements \SeanMorris\Ids\Routable
 
 		$channel = array_shift($args);
 
-		var_dump($args);
-
 		$server->publish(json_encode([
-			'message' => implode(' ', $args)
-			, 'user'  => $clientId
+			'message'    => implode(' ', $args)
+			, 'origin'   => 'user'
+			, 'originId' => $clientId
+			, 'channel'  => $channel
 		]), $channel);
+
+		return 'Published to ' . $channel;
 	}
 
 	public function sub($router)

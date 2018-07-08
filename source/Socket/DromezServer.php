@@ -15,10 +15,13 @@ class DromezServer extends Server
 			, $clientId
 		));
 
-		$this->send(sprintf(
-			'Hi, #%d!'
-			, $clientId
-		), $client);
+		$this->send(json_encode([
+			'message'  => sprintf(
+				'Hi, #%d!'
+				, $clientId
+			)
+			, 'origin' => 'server'
+		]), $client);
 	}
 
 	protected function onReject($client)
@@ -44,10 +47,13 @@ class DromezServer extends Server
 
 		if(\SeanMorris\Dromez\Jwt\Token::verify($message))
 		{
-			$this->send(sprintf(
-				'You\'re authenticated, #%d!'
-				, $clientId
-			), $this->clients[$clientId]);
+			$this->send(json_encode([
+				'message'  => sprintf(
+					'You\'re authenticated, #%d!'
+					, $clientId
+				)
+				, 'origin' => 'server'
+			]), $this->clients[$clientId]);
 
 			fwrite(STDERR, sprintf(
 				"Client #%d authentiated!\n"
@@ -95,8 +101,6 @@ class DromezServer extends Server
 				return;
 			}
 
-			var_dump($path);
-
 			$routes   = new Route;
 			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
 			$router   = new \SeanMorris\Ids\Router($request, $routes);
@@ -104,6 +108,11 @@ class DromezServer extends Server
 			$router->setContext($context);
 
 			$response = $router->route();
+
+			$response = json_encode([
+				'message'  => $response
+				, 'origin' => 'server'
+			]);
 
 			if(isset($this->clients[$clientId]))
 			{
