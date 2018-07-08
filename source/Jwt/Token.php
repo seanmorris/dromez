@@ -20,6 +20,11 @@ class Token
 
 	public static function verify($token)
 	{
+		if(!preg_match('/.+\..+\..+/', $token))
+		{
+			return FALSE;
+		}
+
 		list($header,$body,$signature) = explode('.', $token);
 
 		$expected = hash_hmac(
@@ -27,8 +32,6 @@ class Token
 			, base64_decode($body)
 			, static::secret()
 		);
-
-		var_dump($expected, $signature);
 
 		return hash_equals($expected, $signature);
 	}

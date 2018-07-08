@@ -1,6 +1,6 @@
 <?php
 namespace SeanMorris\Dromez\XmlRpc;
-class Server
+class Client
 {
 	protected $url;
 

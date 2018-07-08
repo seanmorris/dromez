@@ -11,10 +11,10 @@ class RootRoute implements \SeanMorris\Ids\Routable
 
 	public function xml()
 	{
-		$server = new \SeanMorris\Dromez\XmlRpc\Server(
+		$client = new \SeanMorris\Dromez\XmlRpc\Client(
 			'http://localhost:9002/RPC2'
 		);
 
-		var_dump( $server->{'system.listMethods'}() );
+		var_dump( $client->{'system.listMethods'}() );
 	}
 }
