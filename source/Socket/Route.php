@@ -117,6 +117,11 @@ class Route implements \SeanMorris\Ids\Routable
 		$server   = $router->contextGet('__server');
 		$clientId = $router->contextGet('__clientId');
 
+		if(!$router->contextGet('__authed'))
+		{
+			return;
+		}
+
 		if(count($args) < 2)
 		{
 			return;
@@ -124,7 +129,12 @@ class Route implements \SeanMorris\Ids\Routable
 
 		$channel = array_shift($args);
 
-		$server->publish(implode(' ', $args), $channel);
+		var_dump($args);
+
+		$server->publish(json_encode([
+			'message' => implode(' ', $args)
+			, 'user'  => $clientId
+		]), $channel);
 	}
 
 	public function sub($router)
@@ -132,6 +142,11 @@ class Route implements \SeanMorris\Ids\Routable
 		$args     = $router->path()->consumeNodes();
 		$server   = $router->contextGet('__server');
 		$clientId = $router->contextGet('__clientId');
+		
+		if(!$router->contextGet('__authed'))
+		{
+			return;
+		}
 
 		if(count($args) < 1)
 		{
@@ -139,8 +154,6 @@ class Route implements \SeanMorris\Ids\Routable
 		}
 
 		$server->subscribe($args[0], $clientId);
-
-		var_dump($server, $args);
 
 		return sprintf('You\'ve subscribed to %s', $args[0]);
 	}
@@ -157,8 +170,6 @@ class Route implements \SeanMorris\Ids\Routable
 		}
 
 		$server->unsubscribe($args[0], $clientId);
-
-		var_dump($server, $args);
 
 		return sprintf('You\'ve unsubscribed from %s', $args[0]);
 	}

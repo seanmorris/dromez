@@ -39,6 +39,7 @@ class DromezServer extends Server
 			'__server'     => $this
 			, '__client'   => $this->clients[$clientId]
 			, '__clientId' => $clientId
+			, '__authed'   => FALSE
 		];
 
 		if(\SeanMorris\Dromez\Jwt\Token::verify($message))
@@ -54,6 +55,7 @@ class DromezServer extends Server
 			));
 
 			$this->userContext[$clientId] = $defaultContext;
+			$this->userContext[$clientId]['__authed'] = TRUE;
 		}
 		else
 		{
@@ -93,6 +95,8 @@ class DromezServer extends Server
 				return;
 			}
 
+			var_dump($path);
+
 			$routes   = new Route;
 			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
 			$router   = new \SeanMorris\Ids\Router($request, $routes);
@@ -131,6 +135,15 @@ class DromezServer extends Server
 
 	protected function onTick()
 	{
+		static $time;
+		$this->publish(microtime(TRUE), 'time:heavy');
+
+		if($time != time())
+		{
+			$this->publish(microtime(TRUE), 'time:light');
+			$time = time();
+		}
+
 		$this->broadcast(NULL);
 	}
 
