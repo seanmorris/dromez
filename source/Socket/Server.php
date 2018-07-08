@@ -6,7 +6,15 @@ class Server
 		ADDRESS          = '0.0.0.0:9999'
 		, MAX            = 1
 		, PEM_PASSPHRASE = 'password'
-		, FREQUENCY      = 120;
+		, FREQUENCY      = 120
+		, MESSAGE_TYPES  = [
+			'continuous' => 0
+			, 'text'     => 1
+			, 'binary'   => 2
+			, 'close'    => 8
+			, 'ping'     => 9
+			, 'pong'     => 10
+		];
 
 	protected
 		$socket    = NULL
@@ -90,7 +98,24 @@ class Server
 
 	public function send($content, $client)
 	{
-		$response = chr(129) . chr(strlen($content)) . $content;
+		$typeByte = static::MESSAGE_TYPES['text'];
+		$typeByte += 128;
+
+		$length   = strlen($content);
+
+		if($length < 126)
+		{
+			$response = pack('CC', $typeByte, $length) . $content;
+		}
+		else if($length < 65536)
+		{
+			$response = pack('CCn', $typeByte, 126, $length) . $content;
+		}
+		else
+		{
+			$response = pack('CCNN', $typeByte, 127, 0, $length) . $content;
+		}
+
 		try
 		{
 			fwrite($client, $response);
@@ -106,6 +131,7 @@ class Server
 					unset($this->clients[$_clientId]);
 				}
 			}
+
 			fclose($client);
 		}
 	}

@@ -4,7 +4,7 @@ class RootRoute implements \SeanMorris\Ids\Routable
 {
 	public function index()
 	{
-		$server = new \SeanMorris\Dromez\Socket\Server;
+		$server = new \SeanMorris\Dromez\Socket\DromezServer;
 
 		$server->listen();
 	}

@@ -5,7 +5,8 @@ class Route implements \SeanMorris\Ids\Routable
 	public function index()
 	{
 		$token = new \SeanMorris\Dromez\Jwt\Token([
-			'uid' => 1
+			'time'  => microtime(TRUE)
+			, 'uid' => 1
 		]);
 
 		$strReToken = (string)$token;
@@ -26,5 +27,13 @@ class Route implements \SeanMorris\Ids\Routable
 		var_dump(\SeanMorris\Dromez\Jwt\Token::verify($reToken));
 
 		die;
+	}
+
+	public function auth_token()
+	{
+		return new \SeanMorris\Dromez\Jwt\Token([
+			'time'  => microtime(TRUE)
+			, 'uid' => 1
+		]);
 	}
 }
