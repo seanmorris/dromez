@@ -17,10 +17,12 @@ class Server
 		];
 
 	protected
-		$socket          = NULL
+		$id              = NULL
+		, $socket        = NULL
 		, $clients       = []
 		, $sockets       = []
 		, $secure        = TRUE
+		, $channels      = []
 		, $subscriptions = [];
 
 	public function listen()
@@ -31,26 +33,30 @@ class Server
 		{
 			usleep( 1000000 / static::FREQUENCY );
 
-			$this->tick();			
+			$this->tick();
 		}
+	}
+
+	public function addClient($client)
+	{
+		$this->clients[] = $client;
+		end($this->clients);
+		$id = key($this->clients);
+		reset($this->clients);
+
+		return $id;
 	}
 
 	public function tick()
 	{
 		if($newClient = $this->getClient())
 		{
-			$this->clients[] = $newClient;
-
-			end($this->clients);
-
-			$this->onConnect($newClient, key($this->clients));
-
-			reset($this->clients);
+			$this->onConnect($newClient);
 		}
 
 		$this->onTick();
 
-		foreach($this->clients as $clientId => $client)
+		foreach($this->clients as $client)
 		{
 			if(!$client)
 			{
@@ -59,11 +65,11 @@ class Server
 
 			try
 			{
-				while($message = fread($client, 2**16))
+				while($message = $client->read(2**16))
 				{
 					$this->onReceive(
 						static::decode($message)
-						, $clientId
+						, $client
 					);
 				}
 			}
@@ -71,17 +77,242 @@ class Server
 			{
 				\SeanMorris\Ids\Log::logException($e);
 
-				foreach($this->clients as $_clientId => $_client)
-				{
-					if($client === $_client)
-					{
-						$this->onDisconnect($client, $_clientId);
+				$this->onDisconnect($client);
 
-						unset($this->clients[$_clientId]);
-					}
+				unset( $this->clients[$client->id] );
+				$client->close();
+			}
+		}
+	}
+
+	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
+	{
+		$typeByte = static::MESSAGE_TYPES['text'];
+		$typeByte += 128;
+
+		$length   = strlen($content);
+
+		if($length < 126)
+		{
+			$response = pack('CC', $typeByte, $length) . $content;
+		}
+		else if($length < 65536)
+		{
+			$response = pack('CCn', $typeByte, 126, $length) . $content;
+		}
+		else
+		{
+			$response = pack('CCNN', $typeByte, 127, 0, $length) . $content;
+		}
+
+		try
+		{
+			$client->write($response);
+		}
+		catch(\Exception $e)
+		{
+			\SeanMorris\Ids\Log::logException($e);
+
+			if($client)
+			{
+				unset( $this->clients[$client->id] );
+				$client->close();
+			}
+		}
+	}
+
+	public function channels()
+	{
+		return ['*' => 'SeanMorris\Dromez\Socket\Channel'];
+	}
+
+	public function getChannels($name, $client = NULL)
+	{
+		$channelClasses = $this->channels();
+
+		if(($channelClasses[$name] ?? FALSE) && !($this->channels[$name] ?? FALSE))
+		{
+			if(!$channelClasses[$name]::isWildcard($name))
+			{
+				$this->channels[$name] = new $channelClasses[$name]($this, $name);
+			}
+		}
+
+		// var_dump(array_keys($this->channels));
+
+		if($this->channels[$name] ?? FALSE)
+		{
+			return [$name => $this->channels[$name]];
+		}
+
+		// if($channelClasses['*'] ?? FALSE)
+		// {
+		// 	$this->channels[$name] = new $channelClasses['*']($this, $name);
+		// }
+
+		if($this->channels[$name] ?? FALSE)
+		{
+			return [$name => $this->channels[$name]];
+		}
+
+		$channels = [];
+
+		foreach($this->channels() as $channelName => $channelClass)
+		{
+			if(!$channelClass)
+			{
+				continue;
+			}
+
+			if($comboName = $channelClass::compareNames($name, $channelName))
+			{
+				if($channelClass::isWildcard($comboName))
+				{
+					continue;
+				}
+
+				if($client && $channelClass::create($client))
+				{
+					$this->channels[$comboName] = new $channelClass($this, $comboName);
 				}
 			}
 		}
+
+		foreach($this->channels as $channelName => $channel)
+		{
+			if($channel::compareNames($name, $channelName))
+			{
+				$channels[$channelName] = $this->channels[$channelName];
+			}
+		}
+
+		return $channels;
+	}
+
+	public function channelExists($name)
+	{
+		return $this->channels[$name] ?? FALSE;
+	}
+
+	public function broadcast($content, $origin = NULL)
+	{
+		foreach($this->clients as $client)
+		{
+			if(!$client)
+			{
+				continue;
+			}
+
+			$this->send(
+				$content
+				, $client
+				, $origin
+				, $origin ? $origin->id : NULL
+			);
+		}
+	}
+
+	public function subscribe($channelName, ...$clients)
+	{
+		foreach($clients as $client)
+		{
+			if($channels = $this->getChannels($channelName, $client))
+			{
+				foreach($channels as $_channelName => $channel)
+				{
+					$channel->subscribe($client);
+
+					$this->subscriptions[$client->id][$_channelName] = TRUE;
+				}
+			}
+
+			$this->subscriptions[$client->id][$channelName] = TRUE;
+		}
+	}
+
+	public function unsubscribe($channelName, ...$clients)
+	{
+		foreach($clients as $client)
+		{
+			if($channels = $this->getChannels($channelName))
+			{
+				foreach($channels as $_channelName => $channel)
+				{
+					$channel->unsubscribe($client);
+
+					unset($this->subscriptions[$client->id][$_channelName]);
+				}
+			}
+
+			unset($this->subscriptions[$client->id][$channelName]);
+		}
+	}
+
+	public function subscriptions($client)
+	{
+		return $this->subscriptions[$client->id] ?? [];
+	}
+
+	public function publish($content, $channelName, $origin = NULL)
+	{
+		if(!$channels = $this->getChannels($channelName))
+		{
+			fwrite(STDERR, sprintf(
+				"Channel %s does not exist!\n"
+				, $channelName
+			));
+
+			return;
+		}
+
+		foreach($channels as $channel)
+		{
+			$channel->send(
+				$content
+				, $origin
+				, $channelName
+			);
+		}
+	}
+
+	public function socket()
+	{
+		if(!$this->socket)
+		{
+			fwrite(STDERR, "Creating socket...\n");
+			$context = stream_context_create();
+
+			$address = 'tcp://' . static::ADDRESS;
+
+			if($this->secure)
+			{
+				// $address = 'ssl://' . static::ADDRESS;
+				$pem     = static::generateCert();
+				$pemFile = '/tmp/ws_test_pem';
+
+				file_put_contents($pemFile, $pem);
+
+				stream_context_set_option($context, 'ssl', 'local_cert', $pemFile);
+				stream_context_set_option($context, 'ssl', 'passphrase', static::PEM_PASSPHRASE);
+				stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
+				stream_context_set_option($context, 'ssl', 'verify_peer', false);
+			}
+
+			$this->socket = stream_socket_server(
+				$address
+				, $errorNumber
+				, $errorString
+				, STREAM_SERVER_BIND|STREAM_SERVER_LISTEN
+    			, $context
+			);
+		}
+
+		return $this->socket;
+	}
+
+	public function secure()
+	{
+		return $this->secure;
 	}
 
 	protected static function decode($socketData)
@@ -114,147 +345,27 @@ class Server
 		return $socketData;
 	}
 
-	public function send($content, $client)
-	{
-		$typeByte = static::MESSAGE_TYPES['text'];
-		$typeByte += 128;
-
-		$length   = strlen($content);
-
-		if($length < 126)
-		{
-			$response = pack('CC', $typeByte, $length) . $content;
-		}
-		else if($length < 65536)
-		{
-			$response = pack('CCn', $typeByte, 126, $length) . $content;
-		}
-		else
-		{
-			$response = pack('CCNN', $typeByte, 127, 0, $length) . $content;
-		}
-
-		try
-		{
-			fwrite($client, $response);
-		}
-		catch(\Exception $e)
-		{
-			\SeanMorris\Ids\Log::logException($e);
-
-			foreach($this->clients as $_clientId => $_client)
-			{
-				if($client === $_client)
-				{
-					$this->onDisconnect($client, $_clientId);
-
-					unset($this->clients[$_clientId]);
-				}
-			}
-
-			fclose($client);
-		}
-	}
-
-	public function broadcast($content)
-	{
-		foreach($this->clients as $client)
-		{
-			if(!$client)
-			{
-				continue;
-			}
-
-			$this->send($content, $client);
-		}
-	}
-
-	public function subscribe($channel, ...$clientIds)
-	{
-		foreach($clientIds as $clientId)
-		{
-			$this->subscriptions[$clientId][$channel] = TRUE;
-		}
-	}
-
-	public function unsubscribe($channel, ...$clientIds)
-	{
-		foreach($clientIds as $clientId)
-		{
-			unset($this->subscriptions[$clientId][$channel]);
-		}
-	}
-
-	public function publish($content, $channel)
-	{
-		foreach($this->clients as $clientId => $client)
-		{
-			if(!$client
-				|| !isset($this->subscriptions[$clientId][$channel])
-				|| !$this->subscriptions[$clientId][$channel]
-			){
-				continue;
-			}
-
-			$this->send($content, $client);
-		}
-	}
-
 	protected function getClient()
 	{
-		if(!$this->socket)
-		{
-			fwrite(STDERR, "Creating socket...\n");
-			$context = stream_context_create();
-
-			$address = 'tcp://' . static::ADDRESS;
-
-			if($this->secure)
-			{
-				// $address = 'ssl://' . static::ADDRESS;
-				$pem     = static::generateCert();
-				$pemFile = '/tmp/ws_test_pem';
-				
-				file_put_contents($pemFile, $pem);
-
-				stream_context_set_option($context, 'ssl', 'local_cert', $pemFile);
-				stream_context_set_option($context, 'ssl', 'passphrase', static::PEM_PASSPHRASE);
-				stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
-				stream_context_set_option($context, 'ssl', 'verify_peer', false);
-			}
-
-			$this->socket = stream_socket_server(
-				$address
-				, $errorNumber
-				, $errorString
-				, STREAM_SERVER_BIND|STREAM_SERVER_LISTEN
-    			, $context
-			);
-		}
+		$socket = $this->socket();
 
 		try
 		{
-			$client = stream_socket_accept($this->socket, 0);
+			$client = new \SeanMorris\Dromez\Socket\Client($this);
 		}
 		catch(\ErrorException $e)
 		{
 			return FALSE;
 		}
 
-		if($this->secure)
-		{
-			stream_socket_enable_crypto($client, TRUE, STREAM_CRYPTO_METHOD_SSLv23_SERVER);
-		}
-
-		stream_set_blocking($client, FALSE);
-
 		static::handshake($client);
 
 		if(count($this->clients) >= static::MAX)
 		{
-			fwrite($client, "Rejected\r\n");
+			$client->write("Rejected\r\n");
 			$this->onReject($client);
-			fclose($client);
+			$client->close();
+
 			return FALSE;
 		}
 
@@ -288,20 +399,19 @@ class Server
 
 	protected static function handshake($client)
 	{
-		stream_set_blocking($client, TRUE);
+		$client->blocking(TRUE);
 
-		$headers = fread($client, 2**16);
+		$headers = $client->read(2**16);
 
-		stream_set_blocking($client, FALSE);
-		
-		if (!preg_match('#^Sec-WebSocket-Key: (\S+)#mi', $headers, $match))
+		$client->blocking(FALSE);
+
+		if(!preg_match('#^Sec-WebSocket-Key: (\S+)#mi', $headers, $match))
 		{
 			return;
 		}
 
-		fwrite(
-			$client
-			, "HTTP/1.1 101 Switching Protocols\r\n"
+		$headers = $client->write(
+			"HTTP/1.1 101 Switching Protocols\r\n"
 				. "Upgrade: websocket\r\n"
 				. "Connection: Upgrade\r\n"
 				. "Sec-WebSocket-Accept: " . base64_encode(
@@ -311,11 +421,11 @@ class Server
 		);
 	}
 
-	protected function onConnect($client, $clientId)
+	protected function onConnect($client)
 	{
 		fwrite(STDERR, sprintf(
 			"Accepting client #%d...\n"
-			, count($this->clients)
+			, $client->id
 		));
 	}
 
@@ -324,7 +434,7 @@ class Server
 		fwrite(STDERR, "Rejecting client...\n");
 	}
 
-	protected function onReceive($message, $clientId)
+	protected function onReceive($message, $client)
 	{
 		fwrite(STDERR, sprintf(
 			"[#%d][%s] Message Received:\n\t%s\n"
@@ -334,7 +444,7 @@ class Server
 		));
 	}
 
-	protected function onDisconnect($client, $clientId)
+	protected function onDisconnect($client)
 	{
 		fwrite(STDERR, sprintf(
 			"Disconnecting client #%d...\n"
@@ -347,8 +457,13 @@ class Server
 		$this->broadcast('Now: ' . microtime(TRUE));
 	}
 
-	protected function onError($error, $clientId)
+	protected function onError($error)
 	{
 
+	}
+
+	public function __get($name)
+	{
+		return $this->$name;
 	}
 }

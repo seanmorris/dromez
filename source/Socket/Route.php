@@ -4,14 +4,23 @@ class Route implements \SeanMorris\Ids\Routable
 {
 	public function echo($router)
 	{
+		$server   = $router->contextGet('__server');
+		$client   = $router->contextGet('__client');
+		$clientId = $router->contextGet('__clientId');
+
 		$line = $router->path()->consumeNodes();
 
-		return implode(' ', $line);
+		$server->send(
+			implode(' ', $line)
+			, $client
+			, 'user'
+			, $clientId
+		);
 	}
 
 	public function time($router)
 	{
-		return date('Y-m-d G:i:s');
+		return ['time' => microtime(TRUE)];
 	}
 
 	public function inc($router)
@@ -54,14 +63,13 @@ class Route implements \SeanMorris\Ids\Routable
 
 		$server   = $router->contextGet('__server');
 		$client   = $router->contextGet('__client');
-		$clientId = $router->contextGet('__clientId');
 
 		if(!$router->contextGet('chat:channel'))
 		{
 			$router->contextSet('chat:channel', 'main');
 			$server->subscribe(
 				'chat:' . $router->contextGet('chat:channel')
-				, $clientId
+				, $client->id
 			);
 		}
 
@@ -77,7 +85,7 @@ class Route implements \SeanMorris\Ids\Routable
 				$router->contextSet('chat:channel', NULL);
 				$server->unsubscribe(
 					'chat:' . $router->contextGet('chat:channel')
-					, $clientId
+					, $client
 				);
 				return;
 			}
@@ -86,14 +94,14 @@ class Route implements \SeanMorris\Ids\Routable
 			{
 				$server->unsubscribe(
 					'chat:' . $router->contextGet('chat:channel')
-					, $clientId
+					, $client
 				);
 
 				$router->contextSet('chat:channel', $line[1]);
 
 				$server->subscribe(
 					'chat:' . $router->contextGet('chat:channel')
-					, $clientId
+					, $client
 				);
 
 				return;
@@ -103,47 +111,50 @@ class Route implements \SeanMorris\Ids\Routable
 				sprintf(
 					'<%s::%d>: %s'
 					, $router->contextGet('chat:channel')
-					, $clientId
+					, $client->id
 					, $message
 				)
 				, 'chat:' . $router->contextGet('chat:channel')
+				, 'user'
+				, $client
 			);
 		}
 	}
 
 	public function pub($router)
 	{
-		$args     = $router->path()->consumeNodes();
-		$server   = $router->contextGet('__server');
-		$clientId = $router->contextGet('__clientId');
+		$args   = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
 
 		if(!$router->contextGet('__authed'))
 		{
 			return;
 		}
 
-		if(count($args) < 2)
+		if(count($args) < 1)
 		{
 			return;
 		}
 
-		$channel = array_shift($args);
+		$channelName = array_shift($args);
 
-		$server->publish(json_encode([
-			'message'    => implode(' ', $args)
-			, 'origin'   => 'user'
-			, 'originId' => $clientId
-			, 'channel'  => $channel
-		]), $channel);
+		$server->publish(implode(' ', $args), $channelName);
 
-		return 'Published to ' . $channel;
+		if($channels = $server->getChannels($channelName))
+		{
+			// foreach($channels as $channel)
+			// {
+			// 	$channel->send(implode(' ', $args), $client);
+			// }
+		}
 	}
 
 	public function sub($router)
 	{
-		$args     = $router->path()->consumeNodes();
-		$server   = $router->contextGet('__server');
-		$clientId = $router->contextGet('__clientId');
+		$args   = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
 		
 		if(!$router->contextGet('__authed'))
 		{
@@ -155,24 +166,100 @@ class Route implements \SeanMorris\Ids\Routable
 			return;
 		}
 
-		$server->subscribe($args[0], $clientId);
+		$channels = $server->channels();
 
-		return sprintf('You\'ve subscribed to %s', $args[0]);
+		foreach($channels as $channelName => $channel)
+		{
+			if(!$channel)
+			{
+				continue;
+			}
+
+			if($channel::isWildcard($channelName))
+			{
+				if(!($channels[$args[0]] ?? FALSE))
+				{
+					if($channel::create($client))
+					{
+						$server->subscribe($args[0], $client);
+					}
+				}
+				continue;
+			}
+
+			if($channel::compareNames($args[0], $channelName))
+			{
+				$server->subscribe($channelName, $client);
+			}
+		}
+
+		return $this->subs($router);
+	}
+
+
+	public function subs($router)
+	{
+		$args   = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
+		
+		if(!$router->contextGet('__authed'))
+		{
+			return;
+		}
+
+		return [
+			'subscriptions' => array_keys(array_filter(
+				$server->subscriptions($client)
+			))
+		];
 	}
 
 	public function unsub($router)
 	{
-		$args     = $router->path()->consumeNodes();
-		$server   = $router->contextGet('__server');
-		$clientId = $router->contextGet('__clientId');
+		$args   = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
 
 		if(count($args) < 1)
 		{
 			return;
 		}
 
-		$server->unsubscribe($args[0], $clientId);
+		$channels = $server->channels();
+
+		foreach($channels as $channel => $channelClass)
+		{
+			if(!$channelClass)
+			{
+				continue;
+			}
+
+			if($channelClass::isWildcard($channel))
+			{
+				continue;
+			}
+
+			if($channelClass::compareNames($args[0], $channel))
+			{
+				$server->unsubscribe($channel, $client);
+			}
+		}
 
 		return sprintf('You\'ve unsubscribed from %s', $args[0]);
+	}
+
+	public function channels($router)
+	{
+		$args     = $router->path()->consumeNodes();
+		$server   = $router->contextGet('__server');
+
+		$channels = $server->channels();
+
+		// unset($channels['*']);
+
+		return [
+			'channels' => array_keys($channels)
+		];
 	}
 }

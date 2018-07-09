@@ -3,25 +3,23 @@ namespace SeanMorris\Dromez\Socket;
 class DromezServer extends Server
 {
 	const ADDRESS   = 'dromez:9999'
-		, FREQUENCY = 120
+		, FREQUENCY = 60
 		, MAX       = 100;
 
 	protected $userContext = [];
 
-	protected function onConnect($client, $clientId)
+	protected function onConnect($client)
 	{
 		fwrite(STDERR, sprintf(
 			"Accepting client #%d...\n"
-			, $clientId
+			, $client->id
 		));
 
-		$this->send(json_encode([
-			'message'  => sprintf(
-				'Hi, #%d!'
-				, $clientId
-			)
-			, 'origin' => 'server'
-		]), $client);
+		$this->send(
+			sprintf('Hi, #%d!', $client->id)
+			, $client
+			, $this
+		);
 	}
 
 	protected function onReject($client)
@@ -29,55 +27,47 @@ class DromezServer extends Server
 		fwrite(STDERR, "Rejecting client...\n");
 	}
 
-	protected function onReceive($message, $clientId)
+	protected function onReceive($message, $client)
 	{
 		fwrite(STDERR, sprintf(
 			"[#%d][%s] Message Received:\n\t%s\n"
-			, $clientId
+			, $client->id
 			, date('Y-m-d H:i:s')
 			, $message
 		));
 
 		$defaultContext = [
 			'__server'     => $this
-			, '__client'   => $this->clients[$clientId]
-			, '__clientId' => $clientId
+			, '__client'   => $client
+			, '__clientId' => $client->id
 			, '__authed'   => FALSE
 		];
 
 		if(\SeanMorris\Dromez\Jwt\Token::verify($message))
 		{
-			$this->send(json_encode([
-				'message'  => sprintf(
-					'You\'re authenticated, #%d!'
-					, $clientId
-				)
-				, 'origin' => 'server'
-			]), $this->clients[$clientId]);
-
+			$this->send(
+				sprintf('You\'re authenticated, #%d!', $client->id)
+				, $client
+				, $this
+			);
+			
 			fwrite(STDERR, sprintf(
 				"Client #%d authentiated!\n"
-				, $clientId
+				, $client->id
 			));
 
-			$this->userContext[$clientId] = $defaultContext;
-			$this->userContext[$clientId]['__authed'] = TRUE;
+			$this->userContext[$client->id] = $defaultContext;
+			$this->userContext[$client->id]['__authed'] = TRUE;
 		}
 		else
 		{
-			fwrite(STDERR, sprintf(
-				"Message Received from %d!\n\t%s\n"
-				, $clientId
-				, $message
-			));
-
 			$context = [];
 			
 			$path = new \SeanMorris\Ids\Path(...preg_split('/[\s\/]/', $message));
 
-			if(isset($this->userContext[$clientId]))
+			if(isset($this->userContext[$client->id]))
 			{
-				$context =& $this->userContext[$clientId];
+				$context =& $this->userContext[$client->id];
 
 				if(isset($context['__currentPath']))
 				{
@@ -97,7 +87,13 @@ class DromezServer extends Server
 
 			if($message == '\unsub')
 			{
-				$this->subscriptions[$clientId] = [];
+				$this->subscriptions[$client->id] = [];
+
+				foreach($this->channels as $channel)
+				{
+					$channel->unsubscribe($client);
+				}
+
 				return;
 			}
 
@@ -109,55 +105,155 @@ class DromezServer extends Server
 
 			$response = $router->route();
 
-			$response = json_encode([
-				'message'  => $response
-				, 'origin' => 'server'
-			]);
-
-			if(isset($this->clients[$clientId]))
+			if($response === FALSE)
 			{
-				if($response === FALSE)
-				{
-
-					$this->send(sprintf(
-						'Command "%s" not valid.'
-						, $message
-					), $this->clients[$clientId]);
-				}
-				else
-				{
-					$this->send($response, $this->clients[$clientId]);
-				}
+				$this->send(
+					sprintf('Command "%s" not valid.', $message)
+					, $client
+					, $this
+				);
+			}
+			else
+			{
+				$this->send(
+					$response
+					, $client
+					, $this
+				);
 			}
 		}
 	}
 
-	protected function onDisconnect($client, $clientId)
+	protected function onDisconnect($client)
 	{
 		fwrite(STDERR, sprintf(
 			"Disconnecting client #%d...\n"
-			, $clientId
+			, $client->id
 		));
 
-		unset($this->userContext[$clientId]);
+		unset($this->userContext[$client->id]);
 	}
 
 	protected function onTick()
 	{
-		static $time;
-		$this->publish(microtime(TRUE), 'time:heavy');
+		static $time, $slowTime, $medTime = 0;
+
+		$this->broadcast(NULL);	
+
+		return;
+
+		$this->publish(
+			['time' => microtime(TRUE)]
+			, 'time:heavy'
+			, $this
+		);
 
 		if($time != time())
 		{
-			$this->publish(microtime(TRUE), 'time:light');
+			$this->publish(
+				['time' => microtime(TRUE)]
+				, 'time:light'
+				, $this
+			);
+
 			$time = time();
 		}
 
-		$this->broadcast(NULL);
+		$_medTime = microtime(TRUE);
+
+		if(($_medTime - $medTime) > 0.25)
+		{
+			$this->publish(
+				['time' => microtime(TRUE)]
+				, 'time:medium'
+				, $this
+			);
+
+			$medTime = $_medTime;
+		}
+
+		$_slowTime = (int)(time() / 10);
+
+		if($slowTime != $_slowTime)
+		{
+			$this->publish(
+				['time' => microtime(TRUE)]
+				, 'time:slow'
+				, $this
+			);
+
+			$slowTime = $_slowTime;
+		}
 	}
 
-	protected function onError($error, $clientId)
+	protected function onError($error)
 	{
 
 	}
+
+	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
+	{
+		if($content)
+		{
+			$originType = NULL;
+
+			if($origin instanceof \SeanMorris\Dromez\Socket\Server)
+			{
+				$originType = 'server';
+				$originId   = NULL;
+			}
+			else if($origin instanceof \SeanMorris\Dromez\Socket\Client)
+			{
+				$originType = 'user';
+				$originId   = $origin->id;
+			}
+
+			$message = [
+				'message'  => $content
+				, 'origin' => $originType
+			];
+
+			if(isset($originId))
+			{
+				$message['originId'] = $originId;
+			}
+
+			if(isset($channel))
+			{
+				$message['channel'] = $channel;
+
+				if(isset($originalChannel) && $channel !== $originalChannel)
+				{
+					$message['originalChannel'] = $originalChannel;
+				}
+			}
+
+
+			parent::send(json_encode($message), $client);
+		}
+		else
+		{
+			parent::send($content, $client);
+		}
+	}
+
+	public function channels()
+	{
+		return [
+			'ping:announce'   => 'SeanMorris\Dromez\Socket\PingChannel'
+			, 'game:*:chat'   => 'SeanMorris\Dromez\Socket\ChatChannel'
+			, 'game:*:stream' => 'SeanMorris\Dromez\Socket\ChatChannel'
+
+			, 'chat:main'   => 'SeanMorris\Dromez\Socket\ChatChannel'
+			, 'chat:alt'    => 'SeanMorris\Dromez\Socket\ChatChannel'
+			, 'chat:*'      => 'SeanMorris\Dromez\Socket\ChatChannel'
+			, 'time:slow'   => 'SeanMorris\Dromez\Socket\ServerChannel'
+			, 'time:light'  => 'SeanMorris\Dromez\Socket\ServerChannel'
+			, 'time:medium' => 'SeanMorris\Dromez\Socket\ServerChannel'
+			, 'time:heavy'  => 'SeanMorris\Dromez\Socket\ServerChannel'
+			, 'time:*'      => 'SeanMorris\Dromez\Socket\ServerChannel'
+			, '*'           => FALSE
+		];
+	}
 }
+
