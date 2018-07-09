@@ -43,100 +43,6 @@ class Route implements \SeanMorris\Ids\Routable
 		return $userInt;
 	}
 
-	public function pecho($router)
-	{
-		if(!$router->contextGet('__authed'))
-		{
-			return;
-		}
-
-		$router->contextSet('__currentPath', 'pecho');
-
-		$line    = $router->path()->consumeNodes();
-		$message = NULL;
-
-		if($line)
-		{
-			$message = implode(' ', array_filter($line));
-		}
-
-
-		if($message == '\quit')
-		{
-			$router->contextSet('__currentPath', NULL);
-			return;
-		}
-
-		$server = $router->contextGet('__server');
-		$client = $router->contextGet('__client');
-
-		$server->send($message, $client, $client);
-	}
-
-	public function chat($router)
-	{
-		$router->contextSet('__currentPath', 'chat');
-
-		$server = $router->contextGet('__server');
-		$client = $router->contextGet('__client');
-
-		if(!$router->contextGet('chat:channel'))
-		{
-			$router->contextSet('chat:channel', 'main');
-			$server->subscribe(
-				'chat:' . $router->contextGet('chat:channel')
-				, $client->id
-			);
-		}
-
-		$line = $router->path()->consumeNodes();
-
-		$message = implode(' ', array_filter($line));
-
-		if($message)
-		{
-			if($message == '\quit')
-			{
-				$router->contextSet('__currentPath', NULL);
-				$router->contextSet('chat:channel', NULL);
-				$server->unsubscribe(
-					'chat:' . $router->contextGet('chat:channel')
-					, $client
-				);
-				return;
-			}
-
-			if($line[0] == '\join')
-			{
-				$server->unsubscribe(
-					'chat:' . $router->contextGet('chat:channel')
-					, $client
-				);
-
-				$router->contextSet('chat:channel', $line[1]);
-
-				$server->subscribe(
-					'chat:' . $router->contextGet('chat:channel')
-					, $client
-				);
-
-				return;
-			}
-
-			$server->publish(
-				sprintf(
-					'<%s::%d>: %s'
-					, $router->contextGet('chat:channel')
-					, $client->id
-					, $message
-				)
-				, 'chat:' . $router->contextGet('chat:channel')
-				, 'user'
-				, $client
-			);
-		}
-	}
-
 	public function pub($router)
 	{
 		$args   = $router->path()->consumeNodes();
@@ -155,15 +61,7 @@ class Route implements \SeanMorris\Ids\Routable
 
 		$channelName = array_shift($args);
 
-		$server->publish(implode(' ', $args), $channelName);
-
-		if($channels = $server->getChannels($channelName))
-		{
-			// foreach($channels as $channel)
-			// {
-			// 	$channel->send(implode(' ', $args), $client);
-			// }
-		}
+		$server->publish(implode(' ', $args), $channelName, $client);
 	}
 
 	public function sub($router)
