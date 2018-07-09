@@ -138,9 +138,7 @@ class DromezServer extends Server
 	{
 		static $time, $slowTime, $medTime = 0;
 
-		$this->broadcast(NULL);	
-
-		return;
+		$this->broadcast(NULL);
 
 		$this->publish(
 			['time' => microtime(TRUE)]

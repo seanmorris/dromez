@@ -4,17 +4,15 @@ class Route implements \SeanMorris\Ids\Routable
 {
 	public function echo($router)
 	{
-		$server   = $router->contextGet('__server');
-		$client   = $router->contextGet('__client');
-		$clientId = $router->contextGet('__clientId');
-
-		$line = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
+		$line   = $router->path()->consumeNodes();
 
 		$server->send(
 			implode(' ', $line)
 			, $client
 			, 'user'
-			, $clientId
+			, $client->id
 		);
 	}
 
@@ -47,22 +45,40 @@ class Route implements \SeanMorris\Ids\Routable
 
 	public function pecho($router)
 	{
+		if(!$router->contextGet('__authed'))
+		{
+			return;
+		}
+
 		$router->contextSet('__currentPath', 'pecho');
+
+		$line    = $router->path()->consumeNodes();
+		$message = NULL;
+
+		if($line)
+		{
+			$message = implode(' ', array_filter($line));
+		}
+
+
+		if($message == '\quit')
+		{
+			$router->contextSet('__currentPath', NULL);
+			return;
+		}
 
 		$server = $router->contextGet('__server');
 		$client = $router->contextGet('__client');
 
-		$line = $router->path()->consumeNodes();
-
-		$server->send(implode(' ', $line), $client);
+		$server->send($message, $client, $client);
 	}
 
 	public function chat($router)
 	{
 		$router->contextSet('__currentPath', 'chat');
 
-		$server   = $router->contextGet('__server');
-		$client   = $router->contextGet('__client');
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
 
 		if(!$router->contextGet('chat:channel'))
 		{
@@ -261,5 +277,19 @@ class Route implements \SeanMorris\Ids\Routable
 		return [
 			'channels' => array_keys($channels)
 		];
+	}
+
+	public function commands()
+	{
+		$reflection = new \ReflectionClass(get_class());
+		$methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
+		
+		return ['commands' => array_map(
+			function($method)
+			{
+				return $method->name;
+			}
+			, $methods
+		)];
 	}
 }

@@ -67,10 +67,12 @@ class Server
 			{
 				while($message = $client->read(2**16))
 				{
-					$this->onReceive(
-						static::decode($message)
-						, $client
-					);
+					$received = $this->decode($message, $client);
+
+					if($received !== FALSE)
+					{
+						$this->onReceive($received, $client);
+					}
 				}
 			}
 			catch(\Exception $e)
@@ -315,34 +317,58 @@ class Server
 		return $this->secure;
 	}
 
-	protected static function decode($socketData)
+	protected function decode($socketData, $client = NULL)
 	{
-		$length = ord($socketData[1]) & 127;
+		$type = ord($socketData[0]);
 
-		if($length == 126)
+		if($type > 128)
 		{
-			$masks = substr($socketData, 4, 4);
-			$data = substr($socketData, 8);
-		}
-		elseif($length == 127)
-		{
-			$masks = substr($socketData, 10, 4);
-			$data = substr($socketData, 14);
-		}
-		else
-		{
-			$masks = substr($socketData, 2, 4);
-			$data = substr($socketData, 6);
+			$type -= 128;
 		}
 
-		$socketData = '';
-
-		for ($i = 0; $i < strlen($data); ++$i)
+		switch($type)
 		{
-			$socketData .= $data[$i] ^ $masks[$i%4];
+			case(static::MESSAGE_TYPES['close']):
+				if($client)
+				{
+					$this->onDisconnect($client);
+
+					unset( $this->clients[$client->id] );
+
+					$client->close();
+
+					return FALSE;
+				}
+				break;
+			case(static::MESSAGE_TYPES['text']):
+				$length = ord($socketData[1]) & 127;
+
+				if($length == 126)
+				{
+					$masks = substr($socketData, 4, 4);
+					$data = substr($socketData, 8);
+				}
+				elseif($length == 127)
+				{
+					$masks = substr($socketData, 10, 4);
+					$data = substr($socketData, 14);
+				}
+				else
+				{
+					$masks = substr($socketData, 2, 4);
+					$data = substr($socketData, 6);
+				}
+
+				$return = '';
+
+				for ($i = 0; $i < strlen($data); ++$i)
+				{
+					$return .= $data[$i] ^ $masks[$i%4];
+				}
+				break;
 		}
 
-		return $socketData;
+		return $return;
 	}
 
 	protected function getClient()
