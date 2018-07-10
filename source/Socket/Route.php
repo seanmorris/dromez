@@ -22,9 +22,7 @@ class Route implements \SeanMorris\Ids\Routable
 
 		if($router->contextGet('__authed'))
 		{
-			return [
-				'error' => 'You\'re already authed.'
-			];
+			return sprintf('authed');
 		}
 
 		if(\SeanMorris\Dromez\Jwt\Token::verify($args[0]))
@@ -36,7 +34,7 @@ class Route implements \SeanMorris\Ids\Routable
 
 			$router->contextSet('__authed', TRUE);
 
-			return sprintf('You\'re authenticated, #%d!', $client->id);
+			return sprintf('authed');
 		}
 	}
 

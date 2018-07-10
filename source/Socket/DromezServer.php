@@ -206,9 +206,10 @@ class DromezServer extends Server
 	public function channels()
 	{
 		return [
-			'ping:announce'   => 'SeanMorris\Dromez\Socket\PingChannel'
-			, 'game:*:chat'   => 'SeanMorris\Dromez\Socket\ChatChannel'
-			, 'game:*:stream' => 'SeanMorris\Dromez\Socket\ChatChannel'
+			'ping:announce'        => 'SeanMorris\Dromez\Socket\PingChannel'
+			, 'ping:announce:pong' => 'SeanMorris\Dromez\Socket\PingChannel'
+			, 'game:*:chat'        => 'SeanMorris\Dromez\Socket\ChatChannel'
+			, 'game:*:stream'      => 'SeanMorris\Dromez\Socket\ChatChannel'
 
 			, 'chat:main'   => 'SeanMorris\Dromez\Socket\ChatChannel'
 			, 'chat:alt'    => 'SeanMorris\Dromez\Socket\ChatChannel'
