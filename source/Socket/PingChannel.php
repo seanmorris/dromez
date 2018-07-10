@@ -4,8 +4,17 @@ class PingChannel extends \SeanMorris\Dromez\Socket\Channel
 {
 	public function send($content, $origin, $originalChannel = NULL)
 	{
+		$response = ['time' => microtime(TRUE)];
+
+		var_dump($this->name);
+
+		if(Channel::compareNames($this->name, 'ping:*:pong'))
+		{
+			$response['nick'] = $origin->context['__nickname'] ?? NULL;
+		}
+
 		parent::send(
-			['time' => microtime(TRUE)]
+			$response
 			, $origin
 			, $originalChannel
 		);

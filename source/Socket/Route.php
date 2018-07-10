@@ -4,7 +4,12 @@ class Route implements \SeanMorris\Ids\Routable
 {
 	public function motd($router)
 	{
-		return 'Hi!';
+		$client = $router->contextGet('__client');
+
+		return sprintf(
+			'Welcome to the dromez server, #%d!'
+			, $client->id
+		);
 	}
 
 	public function auth($router)
@@ -155,7 +160,6 @@ class Route implements \SeanMorris\Ids\Routable
 		return $this->subs($router);
 	}
 
-
 	public function subs($router)
 	{
 		$args   = $router->path()->consumeNodes();
@@ -230,6 +234,40 @@ class Route implements \SeanMorris\Ids\Routable
 
 		return [
 			'channels' => array_keys($channels)
+		];
+	}
+
+	public function nick($router)
+	{
+		$args   = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
+
+		if(!$router->contextGet('__authed'))
+		{
+			return [
+				'error' => 'You need to auth before you can nick.'
+			];
+		}
+
+		if(count($args) < 1)
+		{
+			return [
+				'nick' => $router->contextGet('__nickname')
+			];
+		}
+
+		if(!preg_match('/^[a-z]\w+$/i', $args[0]))
+		{
+			return [
+				'error' => 'Nickname must be alphanumeric.'
+			];
+		}
+
+		$client = $router->contextSet('__nickname', $args[0]);
+
+		return [
+			'nick' => $args[0]
 		];
 	}
 

@@ -50,6 +50,8 @@ class DromezServer extends Server
 		if(!isset($this->userContext[$client->id]))
 		{
 			$this->userContext[$client->id] = $defaultContext;
+
+			$client->setContext($this->userContext[$client->id]);
 		}
 
 		$context =& $this->userContext[$client->id];

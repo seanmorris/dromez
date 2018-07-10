@@ -2,7 +2,7 @@
 namespace SeanMorris\Dromez\Socket;
 class Client
 {
-	protected $id, $stream;
+	protected $id, $stream, $context = [];
 
 	public function __construct($server)
 	{
@@ -22,6 +22,11 @@ class Client
 		stream_set_blocking($this->stream, FALSE);
 
 		$this->id = $server->addClient($this);
+	}
+
+	public function setContext(&$context)
+	{
+		$this->context =& $context;
 	}
 
 	public function blocking($val)
