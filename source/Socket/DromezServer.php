@@ -43,84 +43,52 @@ class DromezServer extends Server
 			, '__authed'   => FALSE
 		];
 
-		if(\SeanMorris\Dromez\Jwt\Token::verify($message))
+		$context = [];
+		
+		$path = new \SeanMorris\Ids\Path(...preg_split('/\s/', $message));
+
+		if(!isset($this->userContext[$client->id]))
+		{
+			$this->userContext[$client->id] = $defaultContext;
+		}
+
+		$context =& $this->userContext[$client->id];
+
+		if($message == '\unsub')
+		{
+			$this->subscriptions[$client->id] = [];
+
+			foreach($this->channels as $channel)
+			{
+				$channel->unsubscribe($client);
+			}
+
+			return;
+		}
+
+		$routes   = new Route;
+		$request  = new \SeanMorris\Ids\Request(['path' => $path]);
+		$router   = new \SeanMorris\Ids\Router($request, $routes);
+
+		$router->setContext($context);
+
+		$response = $router->route();
+
+		if($response === FALSE)
 		{
 			$this->send(
-				sprintf('You\'re authenticated, #%d!', $client->id)
+				sprintf('Command "%s" not valid.', $message)
 				, $client
 				, $this
 			);
-			
-			fwrite(STDERR, sprintf(
-				"Client #%d authentiated!\n"
-				, $client->id
-			));
-
-			$this->userContext[$client->id] = $defaultContext;
-			$this->userContext[$client->id]['__authed'] = TRUE;
 		}
 		else
 		{
-			$context = [];
-			
-			$path = new \SeanMorris\Ids\Path(...preg_split('/[\s\/]/', $message));
-
-			if(isset($this->userContext[$client->id]))
-			{
-				$context =& $this->userContext[$client->id];
-
-				if(isset($context['__currentPath']))
-				{
-					$path = $path->unshift($context['__currentPath']);
-				}
-			}
-			else
-			{
-				$context = $defaultContext;
-			}
-
-			if($message == '\kill')
-			{
-				unset($context['__currentPath']);
-				return;
-			}
-
-			if($message == '\unsub')
-			{
-				$this->subscriptions[$client->id] = [];
-
-				foreach($this->channels as $channel)
-				{
-					$channel->unsubscribe($client);
-				}
-
-				return;
-			}
-
-			$routes   = new Route;
-			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
-			$router   = new \SeanMorris\Ids\Router($request, $routes);
-
-			$router->setContext($context);
-
-			$response = $router->route();
-
-			if($response === FALSE)
-			{
-				$this->send(
-					sprintf('Command "%s" not valid.', $message)
-					, $client
-					, $this
-				);
-			}
-			else
-			{
-				$this->send(
-					$response
-					, $client
-					, $this
-				);
-			}
+			$this->send(
+				$response
+				, $client
+				, $this
+			);
 		}
 	}
 
@@ -138,7 +106,7 @@ class DromezServer extends Server
 	{
 		static $time, $slowTime, $medTime = 0;
 
-		$this->broadcast(NULL);
+		// $this->broadcast(NULL);
 
 		$this->publish(
 			['time' => microtime(TRUE)]
@@ -191,7 +159,7 @@ class DromezServer extends Server
 
 	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
 	{
-		if($content)
+		if($content !== FALSE && $content !== NULL)
 		{
 			$originType = NULL;
 
