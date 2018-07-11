@@ -6,8 +6,6 @@ class PingChannel extends \SeanMorris\Dromez\Socket\Channel
 	{
 		$response = ['time' => microtime(TRUE)];
 
-		var_dump($this->name);
-
 		if(Channel::compareNames($this->name, 'ping:*:pong'))
 		{
 			$response['nick'] = $origin->context['__nickname'] ?? NULL;

@@ -68,10 +68,32 @@ class Server
 				while($message = $client->read(2**16))
 				{
 					$received = $this->decode($message, $client);
+					$type     = $this->dataType($message);
 
-					if($received !== FALSE)
+					switch($type)
 					{
-						$this->onReceive($received, $client);
+						case(static::MESSAGE_TYPES['text']):
+						case(static::MESSAGE_TYPES['binary']):
+							if($received !== FALSE)
+							{
+								$this->onReceive($received, $client, $type);
+							}
+							break;
+						case(static::MESSAGE_TYPES['close']):
+							if($client)
+							{
+								$this->onDisconnect($client);
+
+								unset( $this->clients[$client->id] );
+
+								$client->close();
+
+								return FALSE;
+							}
+							break;
+						// case(static::MESSAGE_TYPES['ping']):
+						// case(static::MESSAGE_TYPES['pong']):
+							break;
 					}
 				}
 			}
@@ -89,10 +111,20 @@ class Server
 
 	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
 	{
-		$typeByte = static::MESSAGE_TYPES['text'];
-		$typeByte += 128;
+		if(is_int($channel))
+		{
+			$typeByte = static::MESSAGE_TYPES['binary'];
+			
+			$length   = strlen($content);
+		}
+		else
+		{
+			$typeByte = static::MESSAGE_TYPES['text'];
 
-		$length   = strlen($content);
+			$length   = strlen($content);
+		}
+
+		$typeByte += 128;
 
 		if($length < 126)
 		{
@@ -140,17 +172,10 @@ class Server
 			}
 		}
 
-		// var_dump(array_keys($this->channels));
-
 		if($this->channels[$name] ?? FALSE)
 		{
 			return [$name => $this->channels[$name]];
 		}
-
-		// if($channelClasses['*'] ?? FALSE)
-		// {
-		// 	$this->channels[$name] = new $channelClasses['*']($this, $name);
-		// }
 
 		if($this->channels[$name] ?? FALSE)
 		{
@@ -317,46 +342,45 @@ class Server
 		return $this->secure;
 	}
 
-	protected function decode($socketData, $client = NULL)
+	protected function dataType($message)
 	{
-		$type = ord($socketData[0]);
+		$type = ord($message[0]);
 
 		if($type > 128)
 		{
 			$type -= 128;
 		}
 
+		return $type;
+	}
+
+	protected function decode($message)
+	{
+		$type = $this->dataType($message);
+
 		switch($type)
 		{
 			case(static::MESSAGE_TYPES['close']):
-				if($client)
-				{
-					$this->onDisconnect($client);
-
-					unset( $this->clients[$client->id] );
-
-					$client->close();
-
-					return FALSE;
-				}
+				$return = FALSE;
 				break;
 			case(static::MESSAGE_TYPES['text']):
-				$length = ord($socketData[1]) & 127;
+			case(static::MESSAGE_TYPES['binary']):
+				$length = ord($message[1]) & 127;
 
 				if($length == 126)
 				{
-					$masks = substr($socketData, 4, 4);
-					$data = substr($socketData, 8);
+					$masks = substr($message, 4, 4);
+					$data = substr($message, 8);
 				}
-				elseif($length == 127)
+				else if($length == 127)
 				{
-					$masks = substr($socketData, 10, 4);
-					$data = substr($socketData, 14);
+					$masks = substr($message, 10, 4);
+					$data = substr($message, 14);
 				}
 				else
 				{
-					$masks = substr($socketData, 2, 4);
-					$data = substr($socketData, 6);
+					$masks = substr($message, 2, 4);
+					$data = substr($message, 6);
 				}
 
 				$return = '';
@@ -365,6 +389,14 @@ class Server
 				{
 					$return .= $data[$i] ^ $masks[$i%4];
 				}
+				break;
+			case(static::MESSAGE_TYPES['ping']):
+				fwrite(STDERR, 'Received a ping!');
+				$return = FALSE;
+				break;
+			case(static::MESSAGE_TYPES['pong']):
+				fwrite(STDERR, 'Received a ping!');
+				$return = FALSE;
 				break;
 		}
 
@@ -460,12 +492,13 @@ class Server
 		fwrite(STDERR, "Rejecting client...\n");
 	}
 
-	protected function onReceive($message, $client)
+	protected function onReceive($message, $client, $type)
 	{
 		fwrite(STDERR, sprintf(
-			"[#%d][%s] Message Received:\n\t%s\n"
-			, $clientId
+			"[#%d][%s][%d] Message Received:\n\t%s\n"
+			, $client->id
 			, date('Y-m-d H:i:s')
+			, $type
 			, $message
 		));
 	}
@@ -474,7 +507,7 @@ class Server
 	{
 		fwrite(STDERR, sprintf(
 			"Disconnecting client #%d...\n"
-			, $clientId
+			, $client->id
 		));
 	}
 

@@ -27,14 +27,9 @@ class DromezServer extends Server
 		fwrite(STDERR, "Rejecting client...\n");
 	}
 
-	protected function onReceive($message, $client)
+	protected function onReceive($message, $client, $type)
 	{
-		fwrite(STDERR, sprintf(
-			"[#%d][%s] Message Received:\n\t%s\n"
-			, $client->id
-			, date('Y-m-d H:i:s')
-			, $message
-		));
+		parent::onReceive($message, $client, $type);
 
 		$defaultContext = [
 			'__server'     => $this
@@ -43,10 +38,6 @@ class DromezServer extends Server
 			, '__authed'   => FALSE
 		];
 
-		$context = [];
-		
-		$path = new \SeanMorris\Ids\Path(...preg_split('/\s/', $message));
-
 		if(!isset($this->userContext[$client->id]))
 		{
 			$this->userContext[$client->id] = $defaultContext;
@@ -54,27 +45,50 @@ class DromezServer extends Server
 			$client->setContext($this->userContext[$client->id]);
 		}
 
-		$context =& $this->userContext[$client->id];
+		$response = FALSE;
 
-		if($message == '\unsub')
+		if($type == static::MESSAGE_TYPES['text'])
 		{
-			$this->subscriptions[$client->id] = [];
-
-			foreach($this->channels as $channel)
+			if($message == '\unsub')
 			{
-				$channel->unsubscribe($client);
+				$this->subscriptions[$client->id] = [];
+
+				foreach($this->channels as $channel)
+				{
+					$channel->unsubscribe($client);
+				}
+
+				return;
 			}
 
-			return;
+			$path = new \SeanMorris\Ids\Path(...preg_split('/\s/', $message));
+			$routes   = new Route;
+			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
+			$router   = new \SeanMorris\Ids\Router($request, $routes);
+
+			$router->setContext($this->userContext[$client->id]);
+
+			$response = $router->route();
 		}
+		else if($type == static::MESSAGE_TYPES['binary'])
+		{
+			$channels  = $this->channels();
+			$channelId = unpack('Schan', $message, 0)['chan'];
 
-		$routes   = new Route;
-		$request  = new \SeanMorris\Ids\Request(['path' => $path]);
-		$router   = new \SeanMorris\Ids\Router($request, $routes);
+			$finalMessage = '';
 
-		$router->setContext($context);
+			for($i = 2; $i < strlen($message); $i++)
+			{
+				$finalMessage .= $message[$i];
+			}
 
-		$response = $router->route();
+			$channels = $this->getChannels($channelId);
+
+			foreach($channels as $channel)
+			{
+				$channel->send($finalMessage, $client);
+			}
+		}
 
 		if($response === FALSE)
 		{
@@ -86,11 +100,7 @@ class DromezServer extends Server
 		}
 		else
 		{
-			$this->send(
-				$response
-				, $client
-				, $this
-			);
+			$this->send($response, $client, $this);
 		}
 	}
 
@@ -116,11 +126,23 @@ class DromezServer extends Server
 			, $this
 		);
 
+		$this->publish(
+			microtime(TRUE)
+			, 12300
+			, $this
+		);
+
 		if($time != time())
 		{
 			$this->publish(
 				['time' => microtime(TRUE)]
 				, 'time:light'
+				, $this
+			);
+
+			$this->publish(
+				microtime(TRUE)
+				, 12301
 				, $this
 			);
 
@@ -161,7 +183,7 @@ class DromezServer extends Server
 
 	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
 	{
-		if($content !== FALSE && $content !== NULL)
+		if(!is_int($channel) && $content !== FALSE && $content !== NULL)
 		{
 			$originType = NULL;
 
@@ -197,11 +219,39 @@ class DromezServer extends Server
 			}
 
 
-			parent::send(json_encode($message), $client);
+			parent::send(json_encode($message), $client, $origin, $channel);
 		}
-		else
+		else if($content !== NULL)
 		{
-			parent::send($content, $client);
+			if(is_int($channel))
+			{
+				$header = pack(
+					'vvv'
+					, $origin instanceof \SeanMorris\Dromez\Socket\Server
+						? 0
+						: 1
+					, $origin instanceof \SeanMorris\Dromez\Socket\Server
+						? 0
+						: $client->id
+					, $channel
+				);
+
+				if(is_numeric($content))
+				{
+					if(is_int($content))
+					{
+						$content = pack('l', $content);
+					}
+					else if(is_float($content))
+					{
+						$content = pack('e', $content);
+					}
+				}
+
+				$content = $header . $content;
+			}
+
+			parent::send($content, $client, $origin, $channel);
 		}
 	}
 
@@ -221,7 +271,14 @@ class DromezServer extends Server
 			, 'time:medium' => 'SeanMorris\Dromez\Socket\ServerChannel'
 			, 'time:heavy'  => 'SeanMorris\Dromez\Socket\ServerChannel'
 			, 'time:*'      => 'SeanMorris\Dromez\Socket\ServerChannel'
-			, '*'           => FALSE
+
+			, 80    => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 97    => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 666   => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 12300 => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 12301 => 'SeanMorris\Dromez\Socket\DataChannel'
+
+			, '*'   => FALSE
 		];
 	}
 }

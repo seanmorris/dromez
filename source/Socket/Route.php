@@ -2,6 +2,19 @@
 namespace SeanMorris\Dromez\Socket;
 class Route implements \SeanMorris\Ids\Routable
 {
+	public function test($router)
+	{
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
+
+		$server->send(
+			'abc'
+			, $client
+			, $client
+			, -1
+		);
+	}
+
 	public function motd($router)
 	{
 		$client = $router->contextGet('__client');
