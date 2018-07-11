@@ -358,10 +358,11 @@ class Server
 	{
 		$type = $this->dataType($message);
 
+		$return = FALSE;
+
 		switch($type)
 		{
 			case(static::MESSAGE_TYPES['close']):
-				$return = FALSE;
 				break;
 			case(static::MESSAGE_TYPES['text']):
 			case(static::MESSAGE_TYPES['binary']):
@@ -392,11 +393,9 @@ class Server
 				break;
 			case(static::MESSAGE_TYPES['ping']):
 				fwrite(STDERR, 'Received a ping!');
-				$return = FALSE;
 				break;
 			case(static::MESSAGE_TYPES['pong']):
 				fwrite(STDERR, 'Received a ping!');
-				$return = FALSE;
 				break;
 		}
 

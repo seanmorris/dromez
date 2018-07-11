@@ -61,7 +61,7 @@ class DromezServer extends Server
 				return;
 			}
 
-			$path = new \SeanMorris\Ids\Path(...preg_split('/\s/', $message));
+			$path = new \SeanMorris\Ids\Path(...preg_split('/\s+/', $message));
 			$routes   = new Route;
 			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
 			$router   = new \SeanMorris\Ids\Router($request, $routes);

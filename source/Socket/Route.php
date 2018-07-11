@@ -8,7 +8,7 @@ class Route implements \SeanMorris\Ids\Routable
 		$client = $router->contextGet('__client');
 
 		$server->send(
-			'abc'
+			'aaa'
 			, $client
 			, $client
 			, -1
