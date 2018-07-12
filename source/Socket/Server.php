@@ -21,7 +21,7 @@ class Server
 		, $socket        = NULL
 		, $clients       = []
 		, $sockets       = []
-		, $secure        = TRUE
+		, $secure        = FALSE
 		, $channels      = []
 		, $subscriptions = [];
 
