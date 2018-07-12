@@ -17,7 +17,8 @@ class Channel
 
 	public static function isWildcard($name)
 	{
-		return preg_match('/\*/', $name);
+		return preg_match('/\*/', $name)
+			||  preg_match('/\d-\d/', $name);
 	}
 
 	public static function compareNames($a, $b)
@@ -62,15 +63,107 @@ class Channel
 				return FALSE;
 			}
 
+			$returnNode = $cmpA !== '*' ? $cmpA : $cmpB;
+
 			if($cmpA !== $cmpB)
 			{
 				if($cmpA !== '*' && $cmpB !== '*')
 				{
-					return FALSE;
+					$rangeForm = '/^(\d+)\-?(\d+)?$/';
+
+					$mA = preg_match($rangeForm, $cmpA, $groupA);
+					$mB = preg_match($rangeForm, $cmpB, $groupB);
+
+					if($mA && $mB)
+					{
+						$a1 = $groupA[1];
+						$a2 = $groupA[1];
+						$b1 = $groupB[1];
+						$b2 = $groupB[1];
+
+						if(isset($groupA[2]))
+						{
+							$a2 = $groupA[2];
+						}
+
+						if(isset($groupB[2]))
+						{
+							$b2 = $groupB[2];
+						}
+
+						if($a1 >= $b1 && $a2 <= $b2)
+						{
+							$returnNode = "$a1-$a2";
+
+							if($a1 == $a2)
+							{
+								$returnNode = (int) $a1;
+							}
+						}
+						else if($a1 <= $b1 && $a2 >= $b2)
+						{
+							$returnNode = "$b1-$b2";
+
+							if($b1 == $b2)
+							{
+								$returnNode = (int) $b2;
+							}
+						}
+						else if($a2 <= $b2 && $a2 >= $b1)
+						{
+							$returnNode = "$b1-$a2";
+
+							if($b1 == $a2)
+							{
+								$returnNode = (int) $b1;
+							}
+						}
+						else if($a1 <= $b2 && $a1 >= $b1)
+						{
+							$returnNode = "$a1-$b2";
+
+							if($a1 == $b2)
+							{
+								$returnNode = (int) $a1;
+							}
+						}
+						else if($b2 <= $a2 && $b2 >= $a1)
+						{
+							$returnNode = "$a1-$b2";
+
+							if($a1 == $b2)
+							{
+								$returnNode = (int) $a1;
+							}
+						}
+						else if($b1 <= $a2 && $b1 >= $a1)
+						{
+							$returnNode = "$b1-$a2";
+
+							if($b1 == $a2)
+							{
+								$returnNode = (int) $b1;
+							}
+						}
+						else
+						{
+							return FALSE;
+						}
+					}
+					else
+					{
+						return FALSE;
+					}
+
 				}
 			}
 
-			$result[] = $cmpA !== '*' ? $cmpA : $cmpB;
+			$result[] = $returnNode;
+		}
+
+		if(!$result)
+		{
+			return FALSE;
 		}
 
 		return implode(static::SEPARATOR, $result);

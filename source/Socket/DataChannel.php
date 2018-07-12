@@ -14,4 +14,8 @@ class DataChannel extends \SeanMorris\Dromez\Socket\Channel
 	// 		, $originalChannel
 	// 	);
 	// }
+	public static function create($user)
+	{
+		return TRUE;
+	}
 }

@@ -2,25 +2,12 @@
 namespace SeanMorris\Dromez\Socket;
 class Route implements \SeanMorris\Ids\Routable
 {
-	public function test($router)
-	{
-		$server = $router->contextGet('__server');
-		$client = $router->contextGet('__client');
-
-		$server->send(
-			'aaa'
-			, $client
-			, $client
-			, -1
-		);
-	}
-
 	public function motd($router)
 	{
 		$client = $router->contextGet('__client');
 
 		return sprintf(
-			'Welcome to the dromez server, #%d!'
+			'Welcome to the dromez server, 0x%04X!'
 			, $client->id
 		);
 	}
@@ -31,16 +18,18 @@ class Route implements \SeanMorris\Ids\Routable
 		$server = $router->contextGet('__server');
 		$client = $router->contextGet('__client');
 
+		if($router->contextGet('__authed'))
+		{
+			return [
+				'error' => 'authed.'
+			];
+		}
+
 		if(count($args) < 1)
 		{
 			return [
 				'error' => 'Please supply an auth token.'
 			];
-		}
-
-		if($router->contextGet('__authed'))
-		{
-			return sprintf('authed');
 		}
 
 		if(\SeanMorris\Dromez\Jwt\Token::verify($args[0]))
@@ -54,6 +43,53 @@ class Route implements \SeanMorris\Ids\Routable
 
 			return sprintf('authed');
 		}
+	}
+
+	public function nick($router)
+	{
+		$args   = $router->path()->consumeNodes();
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
+
+		if(!$router->contextGet('__authed'))
+		{
+			return [
+				'error' => 'You need to auth before you can nick.'
+			];
+		}
+
+		if(count($args) < 1)
+		{
+			return [
+				'nick' => $router->contextGet('__nickname')
+			];
+		}
+
+		if(!preg_match('/^[a-z]\w+$/i', $args[0]))
+		{
+			return [
+				'error' => 'Nickname must be alphanumeric.'
+			];
+		}
+
+		$client = $router->contextSet('__nickname', $args[0]);
+
+		return [
+			'nick' => $args[0]
+		];
+	}
+
+	public function echo($router)
+	{
+		$server = $router->contextGet('__server');
+		$client = $router->contextGet('__client');
+		$line   = $router->path()->consumeNodes();
+
+		$server->send(
+			implode(' ', $line)
+			, $client
+			, $client
+		);
 	}
 
 	public function time($router)
@@ -118,6 +154,11 @@ class Route implements \SeanMorris\Ids\Routable
 			];
 		}
 
+		if(substr($args[0], 0, 2) == '0x')
+		{
+			$args[0] = hexdec($args[0]);
+		}
+
 		$channelName = array_shift($args);
 
 		$server->publish(implode(' ', $args), $channelName, $client);
@@ -143,6 +184,11 @@ class Route implements \SeanMorris\Ids\Routable
 			];
 		}
 
+		if(substr($args[0], 0, 2) == '0x')
+		{
+			$args[0] = hexdec($args[0]);
+		}
+
 		$channels = $server->channels();
 
 		foreach($channels as $channelName => $channel)
@@ -164,7 +210,7 @@ class Route implements \SeanMorris\Ids\Routable
 				continue;
 			}
 
-			if($channel::compareNames($args[0], $channelName))
+			if($channel::compareNames($args[0], $channelName) !== FALSE)
 			{
 				$server->subscribe($channelName, $client);
 			}
@@ -186,11 +232,31 @@ class Route implements \SeanMorris\Ids\Routable
 			];
 		}
 
-		return [
-			'subscriptions' => array_keys(array_filter(
-				$server->subscriptions($client)
-			))
-		];
+		$channels = array_keys(array_filter(
+			$server->subscriptions($client)
+		));
+
+		$channels = array_map(
+			function($channel)
+			{
+				if(is_numeric($channel))
+				{
+					return '0x' . strtoupper(
+						str_pad(
+							dechex($channel)
+							, 4
+							, 0
+							, STR_PAD_LEFT
+						)
+					);
+				}
+
+				return $channel;
+			}
+			, $channels
+		);
+
+		return ['subscriptions' => $channels];
 	}
 
 	public function unsub($router)
@@ -213,6 +279,11 @@ class Route implements \SeanMorris\Ids\Routable
 			];
 		}
 
+		if(substr($args[0], 0, 2) == '0x')
+		{
+			$args[0] = hexdec($args[0]);
+		}
+
 		$channels = $server->channels();
 
 		foreach($channels as $channel => $channelClass)
@@ -227,7 +298,7 @@ class Route implements \SeanMorris\Ids\Routable
 				continue;
 			}
 
-			if($channelClass::compareNames($args[0], $channel))
+			if($channelClass::compareNames($args[0], $channel) !== FALSE)
 			{
 				$server->unsubscribe($channel, $client);
 			}
@@ -241,60 +312,31 @@ class Route implements \SeanMorris\Ids\Routable
 		$args     = $router->path()->consumeNodes();
 		$server   = $router->contextGet('__server');
 
-		$channels = $server->channels();
-
 		// unset($channels['*']);
+
+		return ['channels' => array_map(
+			function($channel)
+			{
+				if(is_numeric($channel))
+				{
+					return '0x' . strtoupper(
+						str_pad(
+							dechex($channel)
+							, 4
+							, 0
+							, STR_PAD_LEFT
+						)
+					);
+				}
+
+				return $channel;
+			}
+			, array_keys($server->channels())
+		)];
 
 		return [
 			'channels' => array_keys($channels)
 		];
-	}
-
-	public function nick($router)
-	{
-		$args   = $router->path()->consumeNodes();
-		$server = $router->contextGet('__server');
-		$client = $router->contextGet('__client');
-
-		if(!$router->contextGet('__authed'))
-		{
-			return [
-				'error' => 'You need to auth before you can nick.'
-			];
-		}
-
-		if(count($args) < 1)
-		{
-			return [
-				'nick' => $router->contextGet('__nickname')
-			];
-		}
-
-		if(!preg_match('/^[a-z]\w+$/i', $args[0]))
-		{
-			return [
-				'error' => 'Nickname must be alphanumeric.'
-			];
-		}
-
-		$client = $router->contextSet('__nickname', $args[0]);
-
-		return [
-			'nick' => $args[0]
-		];
-	}
-
-	public function echo($router)
-	{
-		$server = $router->contextGet('__server');
-		$client = $router->contextGet('__client');
-		$line   = $router->path()->consumeNodes();
-
-		$server->send(
-			implode(' ', $line)
-			, $client
-			, $client
-		);
 	}
 
 	public function commands()

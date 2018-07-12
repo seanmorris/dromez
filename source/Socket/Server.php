@@ -111,7 +111,7 @@ class Server
 
 	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
 	{
-		if(is_int($channel))
+		if(is_numeric($channel) || preg_match('/^\d+-\d+$/', $channel))
 		{
 			$typeByte = static::MESSAGE_TYPES['binary'];
 			
@@ -177,11 +177,6 @@ class Server
 			return [$name => $this->channels[$name]];
 		}
 
-		if($this->channels[$name] ?? FALSE)
-		{
-			return [$name => $this->channels[$name]];
-		}
-
 		$channels = [];
 
 		foreach($this->channels() as $channelName => $channelClass)
@@ -189,7 +184,7 @@ class Server
 			if(!$channelClass)
 			{
 				continue;
-			}
+			}			
 
 			if($comboName = $channelClass::compareNames($name, $channelName))
 			{
@@ -253,7 +248,7 @@ class Server
 				}
 			}
 
-			$this->subscriptions[$client->id][$channelName] = TRUE;
+			// $this->subscriptions[$client->id][$channelName] = TRUE;
 		}
 	}
 
@@ -269,6 +264,8 @@ class Server
 
 					unset($this->subscriptions[$client->id][$_channelName]);
 				}
+
+				unset($this->subscriptions[$client->id]['*']);
 			}
 
 			unset($this->subscriptions[$client->id][$channelName]);
@@ -493,13 +490,13 @@ class Server
 
 	protected function onReceive($message, $client, $type)
 	{
-		fwrite(STDERR, sprintf(
-			"[#%d][%s][%d] Message Received:\n\t%s\n"
-			, $client->id
-			, date('Y-m-d H:i:s')
-			, $type
-			, $message
-		));
+		// fwrite(STDERR, sprintf(
+		// 	"[#%d][%s][%d] Message Received:\n\t%s\n"
+		// 	, $client->id
+		// 	, date('Y-m-d H:i:s')
+		// 	, $type
+		// 	, $message
+		// ));
 	}
 
 	protected function onDisconnect($client)

@@ -2,7 +2,7 @@
 namespace SeanMorris\Dromez\Socket;
 class DromezServer extends Server
 {
-	const ADDRESS   = 'dromez:9999'
+	const ADDRESS   = '0.0.0.0:9999'
 		, FREQUENCY = 60
 		, MAX       = 100;
 
@@ -49,18 +49,6 @@ class DromezServer extends Server
 
 		if($type == static::MESSAGE_TYPES['text'])
 		{
-			if($message == '\unsub')
-			{
-				$this->subscriptions[$client->id] = [];
-
-				foreach($this->channels as $channel)
-				{
-					$channel->unsubscribe($client);
-				}
-
-				return;
-			}
-
 			$path = new \SeanMorris\Ids\Path(...preg_split('/\s+/', $message));
 			$routes   = new Route;
 			$request  = new \SeanMorris\Ids\Request(['path' => $path]);
@@ -73,7 +61,7 @@ class DromezServer extends Server
 		else if($type == static::MESSAGE_TYPES['binary'])
 		{
 			$channels  = $this->channels();
-			$channelId = unpack('Schan', $message, 0)['chan'];
+			$channelId = unpack('vchan', $message, 0)['chan'];
 
 			$finalMessage = '';
 
@@ -88,6 +76,8 @@ class DromezServer extends Server
 			{
 				$channel->send($finalMessage, $client);
 			}
+
+			$response = NULL;
 		}
 
 		if($response === FALSE)
@@ -117,8 +107,6 @@ class DromezServer extends Server
 	protected function onTick()
 	{
 		static $time, $slowTime, $medTime = 0;
-
-		// $this->broadcast(NULL);
 
 		$this->publish(
 			['time' => microtime(TRUE)]
@@ -183,8 +171,10 @@ class DromezServer extends Server
 
 	public function send($content, $client, $origin = NULL, $channel = NULL, $originalChannel = NULL)
 	{
-		if(!is_int($channel) && $content !== FALSE && $content !== NULL)
-		{
+		if(!is_numeric($channel)
+			&& $content !== FALSE
+			&& $content !== NULL
+		){
 			$originType = NULL;
 
 			if($origin instanceof \SeanMorris\Dromez\Socket\Server)
@@ -218,12 +208,11 @@ class DromezServer extends Server
 				}
 			}
 
-
 			parent::send(json_encode($message), $client, $origin, $channel);
 		}
 		else if($content !== NULL)
 		{
-			if(is_int($channel))
+			if(is_numeric($channel))
 			{
 				$header = pack(
 					'vvv'
@@ -232,7 +221,7 @@ class DromezServer extends Server
 						: 1
 					, $origin instanceof \SeanMorris\Dromez\Socket\Server
 						? 0
-						: $client->id
+						: $origin->id
 					, $channel
 				);
 
@@ -272,11 +261,20 @@ class DromezServer extends Server
 			, 'time:heavy'  => 'SeanMorris\Dromez\Socket\ServerChannel'
 			, 'time:*'      => 'SeanMorris\Dromez\Socket\ServerChannel'
 
+			, 0x0000 => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 0x0001 => 'SeanMorris\Dromez\Socket\DataChannel'
+
 			, 80    => 'SeanMorris\Dromez\Socket\DataChannel'
 			, 97    => 'SeanMorris\Dromez\Socket\DataChannel'
-			, 666   => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 0x29A   => 'SeanMorris\Dromez\Socket\DataChannel'
 			, 12300 => 'SeanMorris\Dromez\Socket\DataChannel'
 			, 12301 => 'SeanMorris\Dromez\Socket\DataChannel'
+
+			// , 0x0500 => 'SeanMorris\Dromez\Socket\DataChannel'
+			, 0x0500 . '-' . 0x0600
+				 => 'SeanMorris\Dromez\Socket\DataChannel'
+
+			, 0xFFFF => 'SeanMorris\Dromez\Socket\DataChannel'
 
 			, '*'   => FALSE
 		];
