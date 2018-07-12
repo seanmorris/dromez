@@ -310,14 +310,13 @@ class Server
 
 			if($this->secure)
 			{
-				// $address = 'ssl://' . static::ADDRESS;
-				$pem     = static::generateCert();
-				$pemFile = '/tmp/ws_test_pem';
+				$pemFile = '/etc/letsencrypt/live/subspace.seanmorr.is/privkey.pem';
 
-				file_put_contents($pemFile, $pem);
+				// SSLCertificateFile /etc/letsencrypt/live/subspace.seanmorr.is/fullchain.pem
+				// SSLCertificateKeyFile /etc/letsencrypt/live/subspace.seanmorr.is/privkey.pem
 
 				stream_context_set_option($context, 'ssl', 'local_cert', $pemFile);
-				stream_context_set_option($context, 'ssl', 'passphrase', static::PEM_PASSPHRASE);
+				stream_context_set_option($context, 'ssl', 'passphrase', '');
 				stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
 				stream_context_set_option($context, 'ssl', 'verify_peer', false);
 			}
