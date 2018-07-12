@@ -310,7 +310,7 @@ class Server
 
 			if($this->secure)
 			{
-				$pemFile = '/etc/letsencrypt/live/subspace.seanmorr.is/privkey.pem';
+				$pemFile = '~/ssl_test.pem';
 
 				// SSLCertificateFile /etc/letsencrypt/live/subspace.seanmorr.is/fullchain.pem
 				// SSLCertificateKeyFile /etc/letsencrypt/live/subspace.seanmorr.is/privkey.pem
