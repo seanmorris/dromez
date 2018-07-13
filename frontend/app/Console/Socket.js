@@ -13,7 +13,7 @@ export class Socket
 		if(1 || refresh || !this.sockets[url])
 		{
 			this.sockets[url] = new this(
-				new WebSocket('wss://' + url + ':9999')
+				new WebSocket(url)
 			);
 		}
 

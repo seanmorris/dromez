@@ -21,11 +21,22 @@ export class Interpreter
 
 		if(match = /^\/server\s+(.+)$/.exec(line))
 		{
-			this.server = match[1];
+			let args    = match[1].split(' ');
+
+			this.server = args[0];
+			this.port   = args[1] || 9999;
+			this.ssl    = args[2] || true;
 
 			let prevClosed = false;
 
-			this.sock = Socket.get(match[1], prevClosed);
+			let url = `wss://${this.server}:${this.port}`;
+
+			if(!this.ssl)
+			{
+				url = `ws://${this.server}:${this.port}`;
+			}
+
+			this.sock = Socket.get(url, prevClosed);
 
 			this.sock.subscribe('open', openEvent => {
 				output.push('.. Connected!');
@@ -118,7 +129,14 @@ export class Interpreter
 
 			output.push('.. Requesting auth token via AJAX.');
 
-			fetch('http:///'+this.server+'/auth').then(response=>{
+			let url = `https://${this.server}/auth`;
+
+			if(!this.ssl)
+			{
+				let url = `http://${this.server}/auth`;
+			}
+
+			fetch(url).then(response=>{
 				return response.text();
 			}).then(text=>{
 				output.push('.. Got auth token.');
