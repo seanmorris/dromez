@@ -21,7 +21,7 @@ export class Service extends BaseService
 			}
 			else
 			{
-				this.view().args.users[ this.users[i] ] = frame.join(',');
+				this.view().args.users[ this.users[i] ] = frame.join('px,') + 'px';
 			}
 		};
 

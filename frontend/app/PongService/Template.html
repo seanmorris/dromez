@@ -1,7 +1,16 @@
-<div class = "pong-box">
-	PONG<br />
-
+<div class = "">
 	<div cv-each = "users:user:i">
-		<div>-([[user]])</div>
+		<div style = "
+			position: absolute;
+			top:0px;
+			left:0px;
+			transform: translate([[user]]);
+			background: black;
+			padding: 10px;
+			font-size: 1.25em;
+			z-index: 5;
+			pointer-events: none;
+
+		">[[user]]</div>
 	</div>
 </div>
