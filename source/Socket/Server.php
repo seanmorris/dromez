@@ -4,7 +4,6 @@ class Server
 {
 	const
 		MAX              = 1
-		, PEM_PASSPHRASE = ''
 		, FREQUENCY      = 120
 		, MESSAGE_TYPES  = [
 			'continuous' => 0
@@ -178,7 +177,17 @@ class Server
 
 			if($comboName = $channelClass::compareNames($name, $channelName))
 			{
-				if($channelClass::isWildcard($comboName))
+				if($range = $channelClass::deRange($comboName))
+				{
+					$channels = [];
+					foreach($range as $numChannel)
+					{
+						$channels += $this->getChannels($numChannel, $client);
+					}
+					return $channels;
+					continue;
+				}
+				else if($channelClass::isWildcard($comboName))
 				{
 					continue;
 				}
@@ -299,16 +308,17 @@ class Server
 
 			if($this->secure)
 			{
-				$chainFile = \SeanMorris\Ids\Settings::read('websocket', 'chainFile');
-				$keyFile = \SeanMorris\Ids\Settings::read('websocket', 'keyFile');
-				$caFile  = \SeanMorris\Ids\Settings::read('websocket', 'caFile');
+				$chainFile  = \SeanMorris\Ids\Settings::read('websocket', 'chainFile');
+				$keyFile    = \SeanMorris\Ids\Settings::read('websocket', 'keyFile');
+				$caFile     = \SeanMorris\Ids\Settings::read('websocket', 'caFile');
+				$passphrase = \SeanMorris\Ids\Settings::read('websocket', 'passphrase');
 
 				$context = stream_context_create([
 					'ssl'=>[
 						'local_cert'          => $chainFile
 						, 'local_pk'          => $keyFile
 						// , 'cafile'            => $caFile
-						, 'passphrase'        => ''
+						, 'passphrase'        => $passphrase
 						, 'allow_self_signed' => TRUE
 						, 'verify_peer'       => FALSE
  					]
@@ -320,20 +330,6 @@ class Server
 			}
 
 			\SeanMorris\Ids\Log::debug(sprintf('Listening on "%s"', $address));
-
-			if($this->secure)
-			{
-				
-				// $pemFile = '~/ssl_test.pem';
-
-				// SSLCertificateFile /etc/letsencrypt/live/subspace.seanmorr.is/fullchain.pem
-				// SSLCertificateKeyFile /etc/letsencrypt/live/subspace.seanmorr.is/privkey.pem
-
-				// stream_context_set_option($context, 'ssl', 'local_cert', $pemFile);
-				// stream_context_set_option($context, 'ssl', 'passphrase', '');
-				// stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
-				// stream_context_set_option($context, 'ssl', 'verify_peer', false);
-			}
 
 			$this->socket = stream_socket_server(
 				$address
@@ -491,13 +487,7 @@ class Server
 
 	protected function onReceive($message, $client, $type)
 	{
-		// fwrite(STDERR, sprintf(
-		// 	"[#%d][%s][%d] Message Received:\n\t%s\n"
-		// 	, $client->id
-		// 	, date('Y-m-d H:i:s')
-		// 	, $type
-		// 	, $message
-		// ));
+		
 	}
 
 	protected function onDisconnect($client)

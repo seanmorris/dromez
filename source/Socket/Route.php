@@ -189,31 +189,11 @@ class Route implements \SeanMorris\Ids\Routable
 			$args[0] = hexdec($args[0]);
 		}
 
-		$channels = $server->channels();
+		$channels = $server->getChannels($args[0], $client);
 
-		foreach($channels as $channelName => $channel)
+		foreach($channels as $channelName => $channelClass)
 		{
-			if(!$channel)
-			{
-				continue;
-			}
-
-			if($channel::isWildcard($channelName))
-			{
-				if(!($channels[$args[0]] ?? FALSE))
-				{
-					if($channel::create($client))
-					{
-						$server->subscribe($args[0], $client);
-					}
-				}
-				continue;
-			}
-
-			if($channel::compareNames($args[0], $channelName) !== FALSE)
-			{
-				$server->subscribe($channelName, $client);
-			}
+			$server->subscribe($channelName, $client);
 		}
 
 		return $this->subs($router);
@@ -284,24 +264,11 @@ class Route implements \SeanMorris\Ids\Routable
 			$args[0] = hexdec($args[0]);
 		}
 
-		$channels = $server->channels();
+		$channels = $server->getChannels($args[0], $client);
 
-		foreach($channels as $channel => $channelClass)
+		foreach($channels as $channelName => $channelClass)
 		{
-			if(!$channelClass)
-			{
-				continue;
-			}
-
-			if($channelClass::isWildcard($channel))
-			{
-				continue;
-			}
-
-			if($channelClass::compareNames($args[0], $channel) !== FALSE)
-			{
-				$server->unsubscribe($channel, $client);
-			}
+			$server->unsubscribe($channelName, $client);
 		}
 
 		return $this->subs($router);

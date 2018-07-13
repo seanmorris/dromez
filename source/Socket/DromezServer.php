@@ -2,8 +2,7 @@
 namespace SeanMorris\Dromez\Socket;
 class DromezServer extends Server
 {
-	const ADDRESS   = '0.0.0.0:9999'
-		, FREQUENCY = 60
+	const FREQUENCY = 60
 		, MAX       = 100;
 
 	protected $userContext = [];
@@ -11,8 +10,10 @@ class DromezServer extends Server
 	protected function onConnect($client)
 	{
 		fwrite(STDERR, sprintf(
-			"Accepting client #%d...\n"
+			"Accepting client 0x%04X (%d/%d)...\n"
 			, $client->id
+			, count($this->clients)
+			, static::MAX
 		));
 
 		$this->send(

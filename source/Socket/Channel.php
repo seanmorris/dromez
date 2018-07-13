@@ -18,7 +18,26 @@ class Channel
 	public static function isWildcard($name)
 	{
 		return preg_match('/\*/', $name)
-			||  preg_match('/\d-\d/', $name);
+			|| static::isRange($name);
+	}
+
+	public static function isRange($name)
+	{
+		return preg_match('/\d-\d/', $name);
+	}
+
+	public static function deRange($name)
+	{
+		if(!static::isRange($name))
+		{
+			return [];
+		}
+		else
+		{
+			list($start, $end) = explode('-', $name);
+
+			return range($start, $end);
+		}
 	}
 
 	public static function compareNames($a, $b)
