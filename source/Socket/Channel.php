@@ -40,8 +40,25 @@ class Channel
 		}
 	}
 
+	protected static function deHex($string)
+	{
+		$regex = '/0?x([\dA-F]+)/i';
+
+		while(preg_match($regex, $string, $groups))
+		{
+			$string = preg_replace($regex, hexdec($groups[1]), $string, 1);
+		}
+
+		var_dump($string);
+
+		return $string;
+	}
+
 	public static function compareNames($a, $b)
 	{
+		$a = static::deHex($a);
+		$b = static::deHex($b);
+
 		$result = [];
 		$splitA = explode(static::SEPARATOR, $a);
 		$splitB = explode(static::SEPARATOR, $b);

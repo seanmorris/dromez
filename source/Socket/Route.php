@@ -154,11 +154,6 @@ class Route implements \SeanMorris\Ids\Routable
 			];
 		}
 
-		if(substr($args[0], 0, 2) == '0x')
-		{
-			$args[0] = hexdec($args[0]);
-		}
-
 		$channelName = array_shift($args);
 
 		$server->publish(implode(' ', $args), $channelName, $client);
@@ -182,11 +177,6 @@ class Route implements \SeanMorris\Ids\Routable
 			return [
 				'error' => 'Please supply a channel selector.'
 			];
-		}
-
-		if(substr($args[0], 0, 2) == '0x')
-		{
-			$args[0] = hexdec($args[0]);
 		}
 
 		$channels = $server->getChannels($args[0], $client);
@@ -257,11 +247,6 @@ class Route implements \SeanMorris\Ids\Routable
 			return [
 				'error' => 'Please supply a channel selector.'
 			];
-		}
-
-		if(substr($args[0], 0, 2) == '0x')
-		{
-			$args[0] = hexdec($args[0]);
 		}
 
 		$channels = $server->getChannels($args[0], $client);
