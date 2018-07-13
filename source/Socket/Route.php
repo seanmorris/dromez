@@ -7,7 +7,7 @@ class Route implements \SeanMorris\Ids\Routable
 		$client = $router->contextGet('__client');
 
 		return sprintf(
-			'Welcome to the dromez server, 0x%04X!'
+			'Welcome to the subspace server, 0x%04X!'
 			, $client->id
 		);
 	}
