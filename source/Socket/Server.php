@@ -198,7 +198,11 @@ class Server
 					$this->channels[$comboName] = new $channelClass($this, $comboName);
 				}
 
-				$channels[$comboName] = $this->channels[$comboName];
+				if(isset($this->channels[$comboName]))
+				{
+					$channels[$comboName] = $this->channels[$comboName];
+				}
+
 			}
 		}
 
