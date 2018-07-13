@@ -16,7 +16,7 @@ class DromezServer extends Server
 		));
 
 		$this->send(
-			sprintf('Hi, #%d!', $client->id)
+			sprintf('Hi, 0x%04X!', $client->id)
 			, $client
 			, $this
 		);
@@ -35,7 +35,7 @@ class DromezServer extends Server
 			'__server'     => $this
 			, '__client'   => $client
 			, '__clientId' => $client->id
-			, '__authed'   => FALSE
+			, '__authed'   => TRUE
 		];
 
 		if(!isset($this->userContext[$client->id]))

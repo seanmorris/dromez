@@ -3,9 +3,8 @@ namespace SeanMorris\Dromez\Socket;
 class Server
 {
 	const
-		ADDRESS          = '0.0.0.0:9999'
-		, MAX            = 1
-		, PEM_PASSPHRASE = 'password'
+		MAX              = 1
+		, PEM_PASSPHRASE = ''
 		, FREQUENCY      = 120
 		, MESSAGE_TYPES  = [
 			'continuous' => 0
@@ -18,10 +17,11 @@ class Server
 
 	protected
 		$id              = NULL
+		, $newClientId   = 0
 		, $socket        = NULL
 		, $clients       = []
 		, $sockets       = []
-		, $secure        = FALSE
+		, $secure        = TRUE
 		, $channels      = []
 		, $subscriptions = [];
 
@@ -35,16 +35,6 @@ class Server
 
 			$this->tick();
 		}
-	}
-
-	public function addClient($client)
-	{
-		$this->clients[] = $client;
-		end($this->clients);
-		$id = key($this->clients);
-		reset($this->clients);
-
-		return $id;
 	}
 
 	public function tick()
@@ -304,21 +294,45 @@ class Server
 		if(!$this->socket)
 		{
 			fwrite(STDERR, "Creating socket...\n");
-			$context = stream_context_create();
 
-			$address = 'tcp://' . static::ADDRESS;
+			$address = \SeanMorris\Ids\Settings::read('websocket', 'address');
 
 			if($this->secure)
 			{
-				$pemFile = '~/ssl_test.pem';
+				$chainFile = \SeanMorris\Ids\Settings::read('websocket', 'chainFile');
+				$keyFile = \SeanMorris\Ids\Settings::read('websocket', 'keyFile');
+				$caFile  = \SeanMorris\Ids\Settings::read('websocket', 'caFile');
+
+				$context = stream_context_create([
+					'ssl'=>[
+						'local_cert'          => $chainFile
+						, 'local_pk'          => $keyFile
+						// , 'cafile'            => $caFile
+						, 'passphrase'        => ''
+						, 'allow_self_signed' => TRUE
+						, 'verify_peer'       => FALSE
+ 					]
+ 				]);
+			}
+			else
+			{
+				$context = stream_context_create();
+			}
+
+			\SeanMorris\Ids\Log::debug(sprintf('Listening on "%s"', $address));
+
+			if($this->secure)
+			{
+				
+				// $pemFile = '~/ssl_test.pem';
 
 				// SSLCertificateFile /etc/letsencrypt/live/subspace.seanmorr.is/fullchain.pem
 				// SSLCertificateKeyFile /etc/letsencrypt/live/subspace.seanmorr.is/privkey.pem
 
-				stream_context_set_option($context, 'ssl', 'local_cert', $pemFile);
-				stream_context_set_option($context, 'ssl', 'passphrase', '');
-				stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
-				stream_context_set_option($context, 'ssl', 'verify_peer', false);
+				// stream_context_set_option($context, 'ssl', 'local_cert', $pemFile);
+				// stream_context_set_option($context, 'ssl', 'passphrase', '');
+				// stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
+				// stream_context_set_option($context, 'ssl', 'verify_peer', false);
 			}
 
 			$this->socket = stream_socket_server(
@@ -404,12 +418,23 @@ class Server
 
 		try
 		{
-			$client = new \SeanMorris\Dromez\Socket\Client($this);
+			$stream = stream_socket_accept($socket, 0);
 		}
 		catch(\ErrorException $e)
 		{
+			if(!$e->getMessage() == 'stream_socket_accept(): accept failed: Connection timed out"')
+			{
+				throw $e;
+			}
+
 			return FALSE;
 		}
+
+		$client = new \SeanMorris\Dromez\Socket\Client(
+			$stream
+			, $this->newClientId++
+			, $this->secure
+		);
 
 		static::handshake($client);
 
@@ -422,32 +447,9 @@ class Server
 			return FALSE;
 		}
 
+		$this->clients[] = $client;
+
 		return $client;
-	}
-
-	protected static function generateCert()
-	{
-		$certificateData = array(
-			"countryName"            => "US",
-			"stateOrProvinceName"    => "New York",
-			"localityName"           => "Valley Stream",
-			"organizationName"       => "localhost",
-			"organizationalUnitName" => "Development",
-			"commonName"             => "localhost",
-			"subjectAltName"         => "localhost",
-			"emailAddress"           => "inquire@seanmorr.is"
-		);
-		$privkey = openssl_pkey_new();
-		$cert    = openssl_csr_new($certificateData, $privkey);
-		$cert    = openssl_csr_sign($cert, null, $privkey, 365);
-
-		$pem_passphrase = static::PEM_PASSPHRASE;
-		$pem            = array();
-		openssl_x509_export($cert, $pem[0]);
-		openssl_pkey_export($privkey, $pem[1], $pem_passphrase);
-		$pem = implode($pem);
-
-		return $pem;
 	}
 
 	protected static function handshake($client)

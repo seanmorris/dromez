@@ -4,14 +4,15 @@ class Client
 {
 	protected $id, $stream, $context = [];
 
-	public function __construct($server)
+	public function __construct($stream, $id, $secure)
 	{
-		$socket = $server->socket();
+		$this->id     = $id;
+		$this->stream = $stream;
 
-		$this->stream = stream_socket_accept($socket, 0);
-
-		if($server->secure())
+		if($secure)
 		{
+			stream_set_blocking($this->stream, TRUE);
+
 			stream_socket_enable_crypto(
 				$this->stream
 				, TRUE
@@ -20,8 +21,6 @@ class Client
 		}
 
 		stream_set_blocking($this->stream, FALSE);
-
-		$this->id = $server->addClient($this);
 	}
 
 	public function setContext(&$context)
