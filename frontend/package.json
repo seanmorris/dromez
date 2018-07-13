@@ -1,0 +1,24 @@
+{
+  "name": "brunch-app",
+  "description": "Brunch.io application",
+  "private": true,
+  "author": "Brunch",
+  "version": "0.0.1",
+  "repository": "",
+  "scripts": {
+    "start": "brunch watch --server",
+    "build": "brunch build --production"
+  },
+  "dependencies": {
+    "curvature": "0.0.3"
+  },
+  "devDependencies": {
+    "babel-brunch": "^6.1.1",
+    "auto-reload-brunch": "^2",
+    "babel-preset-latest": "^6",
+    "brunch": "^2",
+    "clean-css-brunch": "^2",
+    "raw-brunch": "^1.0.2",
+    "uglify-js-brunch": "^2"
+  }
+}

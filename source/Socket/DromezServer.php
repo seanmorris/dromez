@@ -36,7 +36,7 @@ class DromezServer extends Server
 			'__server'     => $this
 			, '__client'   => $client
 			, '__clientId' => $client->id
-			, '__authed'   => TRUE
+			, '__authed'   => FALSE
 		];
 
 		if(!isset($this->userContext[$client->id]))

@@ -1,0 +1,374 @@
+* {
+	margin: 0px;
+	padding: 0px;
+}
+
+html, body {
+	height: 100%;
+	overflow: hidden;
+}
+
+body {
+	display: flex;
+	color: white;
+	background: #333;
+}
+
+.subspace {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	background: #222;
+	font-family: monospace;
+	height: 100%;
+	max-width: 800px;
+	margin: auto;
+	box-shadow: 0px 0px 10px 5px rgba(0,0,0,0.5);
+}
+
+.subspace .input {
+	display: flex;
+	flex-direction: column;
+}
+
+.subspace .output,
+.subspace .input,
+.subspace .title {
+	padding: 10px;
+}
+
+.subspace .menu-bar {
+	display: flex;
+	flex-direction: row;
+	background: #333;
+}
+
+.subspace ul.menu {
+	display: flex;
+	flex-basis: auto;
+	flex-direction: row;
+	white-space: nowrap
+}
+
+.subspace ul.menu > li > ul.menu {
+	display: none;
+	position: absolute;
+	z-index: 1;
+	flex-direction: column;
+	left: 0px;
+	top: 100%
+}
+
+ul.menu > li > ul.menu > li > ul.menu {
+	position: absolute;
+	left: 100%;
+	top: 0px;
+}
+
+.subspace ul.menu {
+	justify-content: flex-end;
+}
+
+.subspace ul.menu.right {
+	align-self: flex-end;
+	margin-left: auto;
+}
+
+.subspace ul.menu.right > li > ul.menu {
+	right: 0px;
+	left: auto;
+}
+
+.subspace ul.menu > li ul.menu {
+	box-shadow: -2.5px 5px 5px 5px rgba(0,0,0,0.25);
+}
+
+.subspace ul.menu.right > li ul.menu {
+	box-shadow: -2.5px 5px 5px 5px rgba(0,0,0,0.25);
+}
+
+ul.menu > li > ul.menu > li {
+	background: #555;
+	min-width: 140px;
+}
+
+ul.menu.right ul.menu > li > ul.menu {
+	right: 100%;
+	left: auto;
+}
+
+.subspace .menu li {
+	position: relative;
+	list-style: none;
+	padding: 10px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.subspace .menu li.open,
+.subspace .menu li:hover
+{
+	opacity: 1;
+	background: #999;
+}
+
+.subspace .menu li.open:not(:hover) {
+}
+
+.subspace .menu li.closing li {
+	opacity: 0;
+}
+
+.subspace ul.menu > li.open > ul.menu,
+.subspace ul.menu > li:hover > ul.menu
+{
+	display: block;
+}
+
+.subspace .title {
+	background: #444;
+}
+.subspace .input {
+	display: flex;
+	flex-direction: row;
+	padding-bottom: 10px;
+	background: #111;
+}
+
+.subspace .input input {
+	flex:1;
+	color: white;
+	padding-top: 0px;
+	height: 100%;
+	border: 0px;
+	background: transparent;
+	font-family: monospace;
+	outline: none;
+}
+
+.subspace .output {
+	padding-top: 10px;
+	flex-direction: column;
+	display: flex;
+	flex: 1;
+	overflow-x: hidden;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.overlay {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	position: absolute;
+	background: rgba(255,255,255,0.4);
+	top:    0px;
+	left:   0px;
+	width:  100%;
+	height: 100%;
+}
+
+.overlay .modal {
+	position: relative;
+	width: 600px;
+	margin: auto;
+	background: #333;
+
+	box-shadow: 0px 5px 10px rgba(0,0,0,0.5);
+
+	color: #CCC;
+}
+
+.overlay .modal.big {
+	padding: 10px;
+	padding-left: 20px;
+	padding-right : 20px;
+}
+
+.modal.big button {
+	background: #CCC;
+	color: #333;
+	position: absolute;
+	bottom: 20px;
+	right: 20px;
+	border: none;
+	padding: 20px;
+	font-weight: bold;
+	font-size: large;
+}
+
+.center {
+	text-align: center;
+}
+
+.service-gui {
+	/*padding: 10px;*/
+}
+
+.analog-clock {
+	display: flex;
+	align-items: center;
+
+	position: relative;
+	border: 1px solid white;
+	border-radius: 100%;
+	width:250px;
+	height:250px;
+	margin: auto;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	overflow: hidden;
+}
+
+.analog-clock .digital {
+	position: relative;
+	margin: auto;
+	text-align: center;
+	background: rgba(0,0,0,0.75);
+	padding: 10px;
+	border-radius: 1.5em;
+	font-weight: bold;
+	font-size: 1.5em;
+}
+
+.analog-clock .hand {
+	position: absolute;
+	
+	bottom: 50%;
+	left: 50%;
+
+	transform-origin: 0% 100%;
+}
+
+.analog-clock .hour-hand {
+	height: 35%;
+	border-left: 1px white solid; 
+}
+
+.analog-clock .minute-hand {
+	height: 47.5%;
+
+	border-left: 1px #999 solid; 
+}
+
+.analog-clock .second-hand {
+	height: 40%;
+	border-left: 1px red solid; 
+}
+
+.chat {
+	position: relative;
+}
+
+.chat > .out {
+	display: flex;
+	height: 320px;
+}
+
+.chat .in {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	background: black;
+}
+
+.chat .in .current {
+	padding: 10px;
+}
+
+.chat .in input {
+	flex: 1;
+	background: #555;
+	color: white;
+	border: none;
+	padding: 10px;
+	outline: none;
+}
+
+.chat .modal .in .title {
+	background: #333;	
+}
+
+.chat .modal .in input {
+	background: #111;
+}
+
+.chat .in button {
+	background: #999;
+	border: none;
+	padding: 10px;
+}
+
+.chat > .out ul {
+	list-style: none;
+}
+
+.chat > .out > .user-list{
+	width: 100px;
+}
+
+.chat > .out > .channel-list{
+	width: 100px;
+}
+
+.chat > .out > .user-list,
+.chat > .out > .channel-list{
+	background: #555;
+}
+
+.chat > .out > .main {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+}
+
+.chat > .out > .main > .message-list {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	padding: 0px;
+}
+
+.chat > .out > .main > .message-list ul {
+	display: flex;
+	flex-direction: column;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.chat > .out > .main > .message-list ul {
+	display: flex;
+	flex: 1;
+}
+
+.chat .message-list li,
+.chat .channel-list li div,
+.chat .user-list li {
+	padding: 10px;
+}
+
+.chat li:hover,
+.chat li.active {
+	background: rgba(0,0,0, 0.3);
+}
+
+hr {
+	border: none;
+	border-top: 1px solid rgba(255,255,255, 0.3);
+	margin: 5px;
+}
+
+.superbold {
+	font-weight: bold;
+	text-shadow: 1px 1px 2px black;
+	text-decoration: underline;
+}
+
+.pong-box {
+	padding:10px;
+}
+
+.subtle-cta {
+	cursor: pointer;
+}

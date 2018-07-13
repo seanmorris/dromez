@@ -4,7 +4,12 @@ class Route implements \SeanMorris\Ids\Routable
 {
 	public function index()
 	{
-		return '';
+		$public = \SeanMorris\Ids\Settings::read('public');
+
+		if($uiPath = realpath($public . '/ui.html'))
+		{
+			return file_get_contents($uiPath);
+		}
 	}
 
 	public function auth()

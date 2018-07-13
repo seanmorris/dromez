@@ -1,0 +1,149 @@
+<div class = "menu-bar" cv-ref = "root:curvature/base/Tag">
+	<ul class = "menu">
+		<li>
+			subspace v0.1a
+			<ul class = "menu">
+				<li cv-on = "click: modal(event);" data-type = "help">
+					help
+				</li>
+				<li cv-on = "click: modal(event);" data-type = "about">
+					about
+				</li>
+			</ul>
+		</li>
+	</ul>
+	<ul class = "menu right" cv-on = "
+		click:     click(event);
+		mouseover: mouseover(event);
+	">
+		<li data-hover-action = "run:commands">
+			command
+			<ul class = "menu" cv-each = "commands:command">
+				<li
+					data-action = "run:[[command]]"
+					data-hover-action = "fill:[[command]]"
+				>
+					[[command]]
+				</li>
+			</ul>
+		</li>
+
+		<li>
+			control
+			<ul class = "menu">
+				<li data-action = "fill:/server " title = "connect">
+					/server
+					<ul class = "menu">
+						<li
+							data-action = "run:/server dromez"
+							data-hover-action = "fill:/server dromez "
+						>
+							dromez
+						</li>
+					</ul>
+				</li>
+				<li
+					data-action = "run:/auth"
+					data-hover-action = "fill:/auth"
+				>
+					/auth
+				</li>
+
+				<li
+					data-action = "fill:/service "
+					data-hover-action = "fill:/service "
+				>
+					/service
+					<ul class = "menu">
+						<li
+							data-action = "run:/service clock"
+							data-hover-action = "fill:/service clock"
+						>
+							clock
+						</li>
+						<li
+							data-action = "run:/service chat"
+							data-hover-action = "fill:/service chat"
+						>
+							chat
+						</li>
+						<li
+							data-action = "run:/service pong"
+							data-hover-action = "fill:/service pong"
+						>
+							pong
+						</li>
+						<li
+							data-action = "run:/service"
+							data-hover-action = "fill:/service"
+						>
+							×
+						</li>
+					</ul>
+				</li>
+
+				<li
+					data-action = "fill:/pub "
+					data-hover-action = "fill:/pub "
+				>
+					/pub
+				</li>
+
+				<li
+					data-action = "run:/clear"
+					data-hover-action = "fill:/clear"
+				>
+					/clear
+				</li>
+
+				<li
+					data-action = "run:/disconnect"
+					data-hover-action = "fill:/disconnect"
+				>
+					/disconnect
+				</li>
+				
+			</ul>
+		</li>
+
+		<li data-hover-action = "run:channels">
+			channel
+			<ul class = "menu" cv-each = "channels:channel">
+				<li>
+					[[channel]]
+					<ul class = "menu">
+						<li
+							data-action = "run:pub [[channel]]"
+							data-hover-action = "fill:pub [[channel]]"
+						>
+							publish
+						</li>
+						<li
+							data-action = "run:sub [[channel]]"
+							data-hover-action = "fill:sub [[channel]]"
+						>
+							subscribe
+						</li>
+						<li
+							data-action = "run:unsub [[channel]]"
+							data-hover-action = "fill:unsub [[channel]]"
+						>
+							unsubscribe
+						</li>
+					</ul>
+				</li>						
+			</ul>
+		</li>
+
+		<!--
+		<li data-hover-action = "">
+			service
+			<ul class = "menu">
+				<li>Clock</li>
+				<li>Chat</li>
+			</ul>
+		</li>
+		-->
+
+	</ul>
+</div>

@@ -75,7 +75,7 @@ class Route implements \SeanMorris\Ids\Routable
 		$client = $router->contextSet('__nickname', $args[0]);
 
 		return [
-			'nick' => $args[0]
+			'yournick' => $args[0]
 		];
 	}
 

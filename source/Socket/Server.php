@@ -179,12 +179,10 @@ class Server
 			{
 				if($range = $channelClass::deRange($comboName))
 				{
-					$channels = [];
 					foreach($range as $numChannel)
 					{
 						$channels += $this->getChannels($numChannel, $client);
 					}
-					return $channels;
 					continue;
 				}
 				else if($channelClass::isWildcard($comboName))
@@ -192,10 +190,15 @@ class Server
 					continue;
 				}
 
-				if($client && $channelClass::create($client))
-				{
+				if($client
+					&& $channelClass::create($client)
+					&& !isset($this->channels[$comboName])
+				){
+
 					$this->channels[$comboName] = new $channelClass($this, $comboName);
 				}
+
+				$channels[$comboName] = $this->channels[$comboName];
 			}
 		}
 

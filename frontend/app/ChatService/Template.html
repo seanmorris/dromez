@@ -1,0 +1,61 @@
+<div class= "chat">
+	<div cv-if = "!nick">
+		<div class = "overlay" cv-if = "!nick">
+			<div class = "modal">
+				<div class = "in">
+					<div class = "title">
+						Nickname:
+					</div>
+					<input cv-bind = "_nick" />
+					<button
+						cv-on = "click:setNick()
+					">set</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class = "out">
+		<div class = "channel-list">
+			<div class = "title">
+				channels
+			</div>
+
+			<ul cv-each = "channels:channel:i">
+				<li
+					cv-on  = "click:clickChannel(i)"
+					cv-ref = "channel:curvature/base/Tag:i"
+				><div>#[[channel]]</div></li>
+			</ul>
+
+		</div>
+		
+		<div class = "main">
+			<div class = "message-list">
+				<ul cv-each = "messages:message"  cv-ref = "output:curvature/base/Tag">
+					<li>[[message]]</li>
+				</ul>
+			</div>
+
+			<div class = "in">
+				<div class = "current">
+					#[[currentChannel]]:
+				</div>
+				<input
+					type = "text"
+					cv-bind = "userBuffer"
+					cv-ref = "input:curvature/base/Tag"
+				/>
+				<button cv-on = "click:send()">send</button>
+			</div>
+		</div>
+
+		<div class = "user-list">
+			<div class = "title">
+				users
+			</div>
+			<ul cv-each = "users:user">
+				<li>[[user]]</li>
+			</ul>
+		</div>
+	</div>
+</div>
