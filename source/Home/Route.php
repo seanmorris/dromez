@@ -22,6 +22,8 @@ class Route implements \SeanMorris\Ids\Routable
 
 	public function __construct()
 	{
+		\SeanMorris\Ids\Log::debug($_SERVER);
+
 		if(isset($_SERVER['HTTP_ORIGIN']) && $corsDomains = \SeanMorris\Ids\Settings::read('corsDomains'))
 		{
 			$referrer = parse_url($_SERVER['HTTP_ORIGIN']);
