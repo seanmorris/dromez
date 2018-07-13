@@ -190,12 +190,12 @@ export class Socket
 				bytes[i + 2] = message[i];
 			}
 			
-			this.socket.send(new Uint8Array(bytes));
+			this.send(new Uint8Array(bytes));
 
 			return;
 		}
 
-		this.socket.send(`pub ${channel} ${message}`);
+		this.send(`pub ${channel} ${message}`);
 	}
 
 	send(message)
