@@ -49,8 +49,6 @@ class Channel
 			$string = preg_replace($regex, hexdec($groups[1]), $string, 1);
 		}
 
-		var_dump($string);
-
 		return $string;
 	}
 
