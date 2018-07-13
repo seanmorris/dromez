@@ -148,6 +148,7 @@ export class Socket
 
 		this.listenerCount[channel]--;
 
+
 		if(channel in this.listenerCount && this.listenerCount[channel] > 0)
 		{
 			

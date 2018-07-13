@@ -20,7 +20,7 @@ export class Input extends View
 			if(v === 1)
 			{
 				this.args.val = this.history[ this.history.length - (this.back+1) ];
-				console.log(this.back, this.history[ this.history.length - (this.back+1) ]);
+
 				if(this.back < this.history.length-1)
 				{
 					this.back++;
@@ -31,7 +31,6 @@ export class Input extends View
 		this.keyboard.keys.bindTo('ArrowDown', (v)=>{
 			if(v === 1)
 			{
-				console.log(this.back, this.history[ this.history.length - (this.back+1) ]);
 				if(this.back > 0)
 				{
 					this.back--;
@@ -91,7 +90,5 @@ export class Input extends View
 	focus()
 	{
 		this.tags.input.element.focus();
-
-		console.log(123);
 	}
 }

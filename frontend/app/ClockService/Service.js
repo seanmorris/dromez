@@ -12,7 +12,9 @@ export class Service extends BaseService
 			this.view().args.time = new Float64Array(m)[0];
 		};
 
-		socket.subscribe('message:12300', '12300-12309', tick);
+		let timeChannel = 12300;
+
+		socket.subscribe(`message:${timeChannel}`, '12300-12309', tick);
 
 		let tickJson = (e,m) => {
 			this.view().args.time = m.time;
@@ -20,10 +22,10 @@ export class Service extends BaseService
 
 		socket.subscribe('message:', 'time:*', tickJson);
 
-		this.cleanup.push( ((tick)=> () => {
-			socket.unsubscribe('message:12301', tick);
+		this.cleanup.push( ((tick, tickJson, timeChannel)=> () => {
+			socket.unsubscribe(`message:${timeChannel}`, tick);
 			socket.unsubscribe('message:',      tickJson);
-		})(tick));
+		})(tick, tickJson, timeChannel));
 	}
 
 	view()
