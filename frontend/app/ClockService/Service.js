@@ -12,7 +12,7 @@ export class Service extends BaseService
 			this.view().args.time = new Float64Array(m)[0];
 		};
 
-		socket.subscribe('message:', '12300-12309', tick);
+		socket.subscribe('message:12300', '12300-12309', tick);
 
 		let tickJson = (e,m) => {
 			this.view().args.time = m.time;
