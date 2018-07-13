@@ -203,20 +203,22 @@ export class Socket
 	{
 		if(this.socket.readyState === this.socket.CONNECTING)
 		{
-			let connectionOpened = ((c) => (event) => {
-				while(this.openQueue.length)
-				{
-					this.send(this.openQueue.shift());
-				}
+			return new Promise((accept, reject) => {
+				let connectionOpened = ((c) => (event) => {
+					while(this.openQueue.length)
+					{
+						this.send(this.openQueue.shift());
+					}
 
-				this.socket.removeEventListener('open', c);
-			})(connectionOpened);
+					this.socket.removeEventListener('open', c);
 
-			this.socket.addEventListener('open', connectionOpened);
+					accept();
+				})(connectionOpened);
 
-			this.openQueue.unshift(message);
+				this.socket.addEventListener('open', connectionOpened);
 
-			return;
+				this.openQueue.unshift(message);
+			});
 		}	
 
 		for(let i in this._onSend)
@@ -225,6 +227,8 @@ export class Socket
 		}
 
 		this.socket.send(message);
+
+		return Promise.resolve();
 	}
 
 	onSend(callback)

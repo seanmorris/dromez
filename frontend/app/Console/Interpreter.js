@@ -19,7 +19,9 @@ export class Interpreter
 			output.push(',, ' + line);
 		}
 
-		if(match = /^\/server\s+(.+)$/.exec(line))
+		this._echo = 1;
+
+		if(match = /^\/(?:server|connect)\s+(.+)$/.exec(line))
 		{
 			let args    = match[1].split(' ');
 
@@ -48,6 +50,11 @@ export class Interpreter
 			});
 
 			this.sock.onSend(message => {
+				if(!this._echo)
+				{
+					return;
+				}
+
 				if(message instanceof Uint8Array)
 				{
 					output.push('<< 0x ' + Array.from(message).map(
@@ -137,10 +144,14 @@ export class Interpreter
 			}
 
 			fetch(url).then(response=>{
+				this._echo = 0;
 				return response.text();
 			}).then(text=>{
 				output.push('.. Got auth token.');
-				this.sock.send('auth ' + text);
+				output.push('<< auth [AUTH TOKEN CENSORED]');
+				return this.sock.send('auth ' + text);
+			}).then((x)=>{
+				this._echo = 1;
 			});
 		}
 		else if(/^\/disconnect$/.exec(line))
@@ -156,7 +167,7 @@ export class Interpreter
 		{
 			output.clear();
 		}
-		else if(match = /^\/pub\s(?:0x)([0-9A-F]{4})\s?(([0-9A-F]{2}\s?)+)?/.exec(line))
+		else if(match = /^\/pub\s(?:0x)([0-9A-F]{1,4})\s?(([0-9A-F]{2}\s?)+)?/.exec(line))
 		{
 			let channel = parseInt(match[1], 16);
 			let data    = [];
@@ -180,7 +191,6 @@ export class Interpreter
 
 			for(let i = 0; i < data.length; i++)
 			{
-				console.log(i);
 				bytes[i + 2] = parseInt(data[i], 16);
 			}
 
@@ -215,6 +225,15 @@ export class Interpreter
 				root.args.service = null;
 			}
 
+		}
+		else if(match = /^\/echo\s(.+?)/.exec(line))
+		{
+			if(match[1] == 'off')
+			{
+				return this._echo = 0;
+			}
+
+			return this._echo = 1;
 		}
 		else if(/^\//.exec(line))
 		{
