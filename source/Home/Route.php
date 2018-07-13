@@ -22,9 +22,10 @@ class Route implements \SeanMorris\Ids\Routable
 
 	public function __construct()
 	{
-		if(isset($_SERVER['HTTP_REFERER']) && $corsDomains = \SeanMorris\Ids\Settings::read('corsDomains'))
+		if(isset($_SERVER['HTTP_ORIGIN']) && $corsDomains = \SeanMorris\Ids\Settings::read('corsDomains'))
 		{
-			$referrer = parse_url($_SERVER['HTTP_REFERER']);
+			$referrer = parse_url($_SERVER['HTTP_ORIGIN']);
+
 			$referrerDomain = sprintf('%s://%s', $referrer['scheme'], $referrer['host']);
 
 			if(isset($referrer['port']))

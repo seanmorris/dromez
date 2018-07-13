@@ -118,7 +118,7 @@ export class Interpreter
 
 			output.push('.. Requesting auth token via AJAX.');
 
-			fetch('//'+this.server+'/auth').then(response=>{
+			fetch('https://'+this.server+'/auth').then(response=>{
 				return response.text();
 			}).then(text=>{
 				output.push('.. Got auth token.');
