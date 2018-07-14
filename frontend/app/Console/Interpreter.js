@@ -50,6 +50,15 @@ export class Interpreter
 			this.sock.subscribe('close', openEvent => {
 				output.push('.. Connection closed.');
 				this.sock.close();
+
+				if(root.service)
+				{
+					root.service.remove();
+					output.push('.. Closing services.');
+				}
+
+				root.service = null;
+				root.args.service = null;
 			});
 
 			this.sock.onSend(message => {
