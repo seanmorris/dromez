@@ -1,3 +1,4 @@
 /connect subspace.seanmorr.is 9999 true
 /auth
 motd
+: Type "/echo off" to disable local command echo.

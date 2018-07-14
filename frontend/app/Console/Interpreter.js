@@ -14,12 +14,15 @@ export class Interpreter
 			, pong: PongService
 		};
 
-		if(/^\//.exec(line))
+		if(!('_echo' in this))
+		{
+			this._echo = 1;
+		}
+
+		if(/^\//.exec(line) && this._echo)
 		{
 			output.push(',, ' + line);
 		}
-
-		this._echo = 1;
 
 		if(match = /^\/(?:server|connect)\s+(.+)$/.exec(line))
 		{
@@ -226,14 +229,20 @@ export class Interpreter
 			}
 
 		}
-		else if(match = /^\/echo\s(.+?)/.exec(line))
+		else if(match = /^\/echo\s(.+)$/.exec(line))
 		{
+			console.log(match);
 			if(match[1] == 'off')
 			{
+				output.push('.. Setting echo off.');
 				return this._echo = 0;
 			}
+			else
+			{
+				output.push('.. Setting echo on.');
+				return this._echo = 1;
+			}
 
-			return this._echo = 1;
 		}
 		else if(/^\//.exec(line))
 		{
